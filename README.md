@@ -540,6 +540,7 @@ The order item should preserve the relevant commercial values at the time of the
 
 ---
 
+
 # 14. Marketer Commissions
 
 The `marketer_commissions` table records commission information associated with marketer earnings.

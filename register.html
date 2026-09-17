@@ -1,0 +1,608 @@
+<?php
+// ملف: register.html - إنشاء حساب جديد بانتظار الموافقة
+session_start();
+include("config.php");
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $fullname = $conn->real_escape_string($_POST['fullname']);
+    $email = $conn->real_escape_string($_POST['email']);
+    $phone = $conn->real_escape_string($_POST['phone']);
+    $region = $conn->real_escape_string($_POST['region'] ?? '');
+    $address = $conn->real_escape_string($_POST['address'] ?? '');
+    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    $user_type = $conn->real_escape_string($_POST['user_type'] ?? 'مسوق');
+
+    // التحقق من عدم وجود البريد الإلكتروني مسبقاً
+    $check_email = $conn->query("SELECT id FROM users WHERE email = '$email'");
+    
+    if ($check_email && $check_email->num_rows > 0) {
+        $error = "البريد الإلكتروني مسجل مسبقاً";
+    } else {
+        // التحقق من عدم وجود رقم الهاتف مسبقاً
+        $check_phone = $conn->query("SELECT id FROM users WHERE phone = '$phone'");
+        if ($check_phone && $check_phone->num_rows > 0) {
+            $error = "رقم الهاتف مسجل مسبقاً";
+        } else {
+            // إدراج المستخدم الجديد مع is_active = 0 (بانتظار الموافقة)
+            $stmt = $conn->prepare("INSERT INTO users (fullname, email, phone, region, address, password, user_type, wallet_balance, total_earnings, total_withdrawn, balance, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 0.00, 0.00, 0.00, 0.00, 0)");
+            $stmt->bind_param("sssssss", $fullname, $email, $phone, $region, $address, $password, $user_type);
+            
+            if ($stmt->execute()) {
+                $success = "تم إنشاء الحساب بنجاح! في انتظار مراجعته من قبل المسؤول.";
+            } else {
+                $error = "حدث خطأ أثناء إنشاء الحساب: " . $stmt->error;
+            }
+        }
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إنشاء حساب جديد</title>
+    <?php include __DIR__ . '/favicon_tags.php'; ?>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Cairo", sans-serif;
+        }
+
+        body {
+            height: 100vh;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            width: 950px;
+            height: 600px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .animation-section {
+            flex: 1;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .character {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin-bottom: 30px;
+        }
+
+        .face {
+            width: 120px;
+            height: 140px;
+            background: #ffdbac;
+            border-radius: 60px 60px 70px 70px;
+            position: relative;
+            margin: 0 auto;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .eyes {
+            display: flex;
+            justify-content: space-between;
+            padding: 35px 20px 0;
+        }
+
+        .eye {
+            width: 30px;
+            height: 30px;
+            background: white;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .pupil {
+            width: 15px;
+            height: 15px;
+            background: #059669;
+            border-radius: 50%;
+            position: absolute;
+            top: 7px;
+            left: 7px;
+            transition: all 0.1s ease;
+        }
+
+        .mouth {
+            width: 50px;
+            height: 20px;
+            background: #e75480;
+            border-radius: 0 0 25px 25px;
+            margin: 15px auto 0;
+            transition: all 0.3s ease;
+        }
+
+        .happy-mouth {
+            width: 60px;
+            height: 30px;
+            border-radius: 0 0 30px 30px;
+            background: #e75480;
+        }
+
+        .sad-mouth {
+            width: 40px;
+            height: 10px;
+            border-radius: 10px;
+            background: #e75480;
+            transform: translateY(10px);
+        }
+
+        .hair {
+            width: 130px;
+            height: 40px;
+            background: #4a2c2a;
+            border-radius: 40px 40px 0 0;
+            position: absolute;
+            top: -20px;
+            left: 35px;
+        }
+
+        .body {
+            width: 100px;
+            height: 80px;
+            background: #10b981;
+            border-radius: 40px 40px 0 0;
+            margin: -10px auto 0;
+            position: relative;
+        }
+
+        .arms {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            transition: transform 0.3s ease;
+        }
+
+        .arm {
+            width: 20px;
+            height: 60px;
+            background: #10b981;
+            border-radius: 10px;
+        }
+
+        .left-arm {
+            transform-origin: top right;
+        }
+
+        .right-arm {
+            transform-origin: top left;
+        }
+
+        .waving .left-arm {
+            animation: wave 1s infinite;
+        }
+
+        .celebrating .arms {
+            transform: translateY(-20px);
+        }
+
+        .celebrating .left-arm, .celebrating .right-arm {
+            animation: celebrate 0.5s alternate infinite;
+        }
+
+        .rejecting .head {
+            animation: shake 0.5s;
+        }
+
+        .writing .arms {
+            transform: translateY(10px);
+        }
+
+        .writing .left-arm, .writing .right-arm {
+            animation: write 1s infinite alternate;
+        }
+
+        .head {
+            transition: transform 0.3s ease;
+        }
+
+        @keyframes wave {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(-30deg); }
+        }
+
+        @keyframes celebrate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(20deg); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        @keyframes write {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(5px); }
+        }
+
+        .register-section {
+            flex: 1.2;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            overflow-y: auto;
+            max-height: 100%;
+        }
+
+        .title-icon {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            color: #0f172a;
+            margin-bottom: 15px;
+        }
+
+        .title-icon i {
+            font-size: 26px;
+            color: #10b981;
+        }
+
+        .title-icon h1 {
+            font-size: 26px;
+            font-weight: bold;
+            color: #0f172a;
+        }
+
+        .register-section p {
+            color: #475569;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        form {
+            text-align: right;
+        }
+
+        label {
+            display: block;
+            margin: 12px 0 5px;
+            font-weight: bold;
+            color: #0f172a;
+            font-size: 14px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            font-size: 14px;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        input:focus, select:focus {
+            border-color: #10b981;
+            box-shadow: 0 0 5px rgba(16, 185, 129, 0.4);
+        }
+
+        .note {
+            display: block;
+            font-size: 12px;
+            color: #f59e0b;
+            margin-top: 4px;
+        }
+
+        .register-btn {
+            width: auto;
+            padding: 10px 25px;
+            margin: 20px auto 0;
+            background: #10b981;
+            color: black;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-block;
+            text-align: center;
+            text-decoration: none;
+        }
+
+        .register-btn:hover {
+            background: white;
+            color: black;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .register-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .forgot {
+            display: inline-block;
+            margin-top: 10px;
+            color: #10b981;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .forgot:hover {
+            text-decoration: underline;
+        }
+
+        .create {
+            margin-top: 15px;
+            text-align: center;
+            color: #475569;
+            font-size: 14px;
+        }
+
+        .create a {
+            color: #10b981;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .create a:hover {
+            text-decoration: underline;
+        }
+
+        .error {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            display: block;
+        }
+
+        .success {
+            background: #d1fae5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            display: block;
+        }
+
+        .bubbles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .bubble {
+            position: absolute;
+            bottom: -50px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            animation: float 8s infinite ease-in;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.7;
+            }
+            90% {
+                opacity: 0.7;
+            }
+            100% {
+                transform: translateY(-600px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .form-row > div {
+            flex: 1;
+        }
+
+        .info-box {
+            background: #d1fae5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+
+        .info-box ul {
+            padding-right: 15px;
+            margin: 5px 0;
+        }
+
+        .info-box li {
+            margin-bottom: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="animation-section">
+            <div class="character" id="character">
+                <div class="head">
+                    <div class="hair"></div>
+                    <div class="face">
+                        <div class="eyes">
+                            <div class="eye">
+                                <div class="pupil" id="leftPupil"></div>
+                            </div>
+                            <div class="eye">
+                                <div class="pupil" id="rightPupil"></div>
+                            </div>
+                        </div>
+                        <div class="mouth" id="mouth"></div>
+                    </div>
+                </div>
+                <div class="body">
+                    <div class="arms" id="arms">
+                        <div class="arm left-arm"></div>
+                        <div class="arm right-arm"></div>
+                    </div>
+                </div>
+            </div>
+            <h2 class="text-white text-xl font-bold mt-4" id="characterMessage"> مرحباً بك! أنشئ حسابك الجديد في</h2>
+            <h2 class="text-white text-xl font-bold mt-4" id="characterMessage"> Digital Soldiers  </h2>
+            <div class="bubbles" id="bubbles"></div>
+        </div>
+        
+        <div class="register-section">
+            <div class="title-icon" style="flex-direction: column; gap: 12px;">
+                <img src="brand_logo.php?f=logo" alt="Miskova Global" style="max-width: 140px; max-height: 90px; object-fit: contain; border-radius: 8px;">
+                <h1>إنشاء حساب جديد</h1>
+            </div>
+            
+            <p>املأ البيانات التالية لإنشاء حسابك</p>
+
+            <?php if(isset($error)): ?>
+                <div class="error">
+                    <i class='bx bx-error-circle'></i>
+                    <?= $error ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if(isset($success)): ?>
+                <div class="success">
+                    <i class='bx bx-check-circle'></i>
+                    <?= $success ?>
+                </div>
+                <div class="create">
+                    <a href="login.html">الذهاب لتسجيل الدخول</a>
+                </div>
+            <?php else: ?>
+            <form method="POST">
+                <label for="fullname">الاسم الكامل *</label>
+                <input type="text" name="fullname" placeholder="أدخل اسمك الكامل" required>
+                
+                <div class="form-row">
+                    <div>
+                        <label for="email">البريد الإلكتروني *</label>
+                        <input type="email" name="email" placeholder="example@email.com" required>
+                    </div>
+                    <div>
+                        <label for="phone">رقم الهاتف *</label>
+                        <input type="tel" name="phone" placeholder="09XXXXXXXX" required>
+                    </div>
+                </div>
+                <span class="note">يجب أن يكون الرقم مرتبط بحساب واتساب</span>
+                
+                <div class="form-row">
+                    <div>
+                        <label for="user_type">نوع الحساب *</label>
+                        <select name="user_type" required>
+                            <option value="مسوق" selected>مسوق</option>
+                            <option value="تاجر">تاجر</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="region">المنطقة</label>
+                        <input type="text" name="region" placeholder="المدينة أو المنطقة">
+                    </div>
+                </div>
+                
+                <label for="address">العنوان</label>
+                <textarea name="address" rows="2" placeholder="أدخل عنوانك الكامل"></textarea>
+                
+                <label for="password">كلمة المرور *</label>
+                <input type="password" name="password" placeholder="أدخل كلمة المرور" required>
+                
+                <button type="submit" class="register-btn">إنشاء الحساب</button>
+            </form>
+
+            <div class="create">
+                لديك حساب بالفعل؟ <a href="login.html">تسجيل الدخول</a>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <script>
+        // إنشاء الفقاعات
+        function createBubbles() {
+            const bubblesContainer = document.getElementById('bubbles');
+            for (let i = 0; i < 15; i++) {
+                const bubble = document.createElement('div');
+                bubble.classList.add('bubble');
+                bubble.style.left = `${Math.random() * 100}%`;
+                bubble.style.width = `${20 + Math.random() * 30}px`;
+                bubble.style.height = bubble.style.width;
+                bubble.style.animationDelay = `${Math.random() * 5}s`;
+                bubble.style.animationDuration = `${5 + Math.random() * 5}s`;
+                bubblesContainer.appendChild(bubble);
+            }
+        }
+
+        // متابعة حركة الماوس للعيون
+        document.addEventListener('mousemove', (e) => {
+            const leftPupil = document.getElementById('leftPupil');
+            const rightPupil = document.getElementById('rightPupil');
+            const character = document.getElementById('character');
+            
+            const characterRect = character.getBoundingClientRect();
+            const characterCenterX = characterRect.left + characterRect.width / 2;
+            const characterCenterY = characterRect.top + characterRect.height / 2;
+            
+            const angleX = (e.clientX - characterCenterX) / 50;
+            const angleY = (e.clientY - characterCenterY) / 50;
+            
+            leftPupil.style.transform = `translate(${Math.min(Math.max(angleX, -5), 5)}px, ${Math.min(Math.max(angleY, -5), 5)}px)`;
+            rightPupil.style.transform = `translate(${Math.min(Math.max(angleX, -5), 5)}px, ${Math.min(Math.max(angleY, -5), 5)}px)`;
+        });
+
+        // تهيئة الصفحة
+        document.addEventListener('DOMContentLoaded', () => {
+            createBubbles();
+            
+            const character = document.getElementById('character');
+            character.classList.add('waving');
+            
+            setTimeout(() => {
+                character.classList.remove('waving');
+            }, 3000);
+        });
+    </script>
+</body>
+</html>

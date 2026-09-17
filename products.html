@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>لوحة التاجر - المنتجات</title>
+    <link rel="icon" type="image/png" href="brand_logo.php?f=logo">
+    <link rel="shortcut icon" type="image/png" href="brand_logo.php?f=favicon">
+    <link rel="apple-touch-icon" href="brand_logo.php?f=logo">
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+
+  <style>
+    body {
+      font-family: "Cairo", sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background: #f3f4f6;
+      color: #1f2937;
+    }
+
+    h1 {
+      text-align: center;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #374151;
+    }
+
+    /* =========================
+       Product Stats – Small Inline
+    ========================= */
+    .product-stats-inline {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.95rem;
+      color: #374151;
+    }
+
+    .product-stats-inline span {
+      display: flex;
+      gap: 0.25rem;
+      font-weight: 600;
+    }
+
+    .product-stats-inline span b {
+      color: #111827;
+    }
+
+    /* =========================
+       Table Style
+    ========================= */
+    .table-container {
+      max-width: 1100px;
+      margin: 0 auto;
+      overflow-x: auto;
+      border-radius: 1rem;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 600px;
+    }
+
+    thead {
+      background-color: #e5e7eb;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    th, td {
+      padding: 0.75rem 1rem;
+      text-align: center;
+      border-bottom: 1px solid #d1d5db;
+      font-size: 0.95rem;
+    }
+
+    th { font-weight: 700; color: #374151; }
+
+    tbody tr:nth-child(even) { background-color: #f9fafb; }
+    tbody tr:hover { background-color: #f3f4f6; }
+
+    td img {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 0.5rem;
+      border: 1px solid #ccc;
+    }
+
+    .active { color: #16a34a; font-weight: 700; }
+    .inactive { color: #ef4444; font-weight: 700; }
+
+    footer {
+      margin-top: 3rem;
+      background-color: #111827;
+      color: white;
+      padding: 1.5rem 0;
+      text-align: center;
+      border-radius: 1rem;
+    }
+
+    footer .social-links {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    footer .social-links a { color: white; text-decoration: none; }
+    footer .social-links a:hover { color: #9ae6b4; }
+
+    /* Pagination Styles */
+    .pagination-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 2rem 0;
+      gap: 0.5rem;
+    }
+
+    .pagination-btn {
+      padding: 0.5rem 1rem;
+      border: 2px solid #e5e7eb;
+      background: #fff;
+      color: #374151;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      min-width: 40px;
+      text-align: center;
+    }
+
+    .pagination-btn:hover {
+      background: #f3f4f6;
+      border-color: #d1d5db;
+      transform: translateY(-1px);
+    }
+
+    .pagination-btn.active {
+      background: #4b6b2f;
+      color: #fff;
+      border-color: #4b6b2f;
+    }
+
+    .pagination-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .page-info {
+      padding: 0.5rem 1rem;
+      color: #6b7280;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    @media (max-width: 768px){
+      th, td { font-size: 0.85rem; padding: 0.5rem 0.75rem; }
+      td img { width: 50px; height: 50px; }
+      .product-stats-inline { gap: 1rem; font-size: 0.85rem; }
+      .pagination-btn { padding: 0.4rem 0.8rem; font-size: 0.8rem; min-width: 35px; }
+      .pagination-container { gap: 0.3rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="logo-text">لوحة التاجر</div>
+    <div class="nav-links">
+      <a href="home.html">الرئيسية</a>
+      <a href="products.html">المنتجات</a>
+      <a href="orders.html">الطلبات</a>
+      <a href="shipping_cities_statistics.html">إحصائيات المدن</a>
+      <a href="withdrawing.html">السحب</a>
+      <a href="#">الإعدادات</a>
+    </div>
+  </nav>
+
+  <h1>المنتجات المرسلة من الادمن</h1>
+
+  <!-- إحصائيات صغيرة inline -->
+  <div class="product-stats-inline">
+    <span>إجمالي المنتجات: <b id="totalProducts">0</b></span>
+    <span>المفعل: <b id="activeProducts">0</b></span>
+    <span>غير المفعل: <b id="inactiveProducts">0</b></span>
+  </div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>الصورة</th>
+          <th>اسم المنتج</th>
+          <th>السعر</th>
+          <th>العمولة</th>
+          <th>تاريخ الرفع</th>
+          <th>الحالة</th>
+        </tr>
+      </thead>
+      <tbody id="productsTableBody">
+        <!-- المنتجات هتظهر هنا -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination Container -->
+  <div class="pagination-container" id="paginationContainer">
+    <!-- أزرار الصفحات هتظهر هنا تلقائياً -->
+  </div>
+
+  <footer>
+    <div class="social-links">
+      <a href="#"><i class='bx bxl-facebook-circle'></i></a>
+      <a href="#"><i class='bx bxl-instagram'></i></a>
+      <a href="#"><i class='bx bxl-tiktok'></i></a>
+      <a href="#"><i class='bx bxl-telegram'></i></a>
+    </div>
+    <p>© جميع الحقوق محفوظة</p>
+  </footer>
+
+  <script>
+    let currentPage = 1;
+    const productsPerPage = 4;
+    let allProducts = [];
+
+    function loadProducts() {
+      const tbody = document.getElementById('productsTableBody');
+      const totalEl = document.getElementById('totalProducts');
+      const activeEl = document.getElementById('activeProducts');
+      const inactiveEl = document.getElementById('inactiveProducts');
+
+      allProducts = JSON.parse(localStorage.getItem('products')) || [];
+
+      // احصائيات
+      const total = allProducts.length;
+      const active = allProducts.filter(p => p.status === 'active').length;
+      const inactive = allProducts.filter(p => p.status !== 'active').length;
+
+      totalEl.textContent = total;
+      activeEl.textContent = active;
+      inactiveEl.textContent = inactive;
+
+      // عرض المنتجات للصفحة الحالية
+      displayProducts();
+      // إنشاء أزرار الصفحات
+      createPagination();
+    }
+
+    function displayProducts() {
+      const tbody = document.getElementById('productsTableBody');
+      tbody.innerHTML = '';
+
+      const startIndex = (currentPage - 1) * productsPerPage;
+      const endIndex = startIndex + productsPerPage;
+      const productsToShow = allProducts.slice(startIndex, endIndex);
+
+      if(productsToShow.length === 0){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="6">لا توجد منتجات في هذه الصفحة</td>`;
+        tbody.appendChild(tr);
+      } else {
+        productsToShow.forEach(prod => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><img src="${prod.image}" alt="${prod.name}" /></td>
+            <td>${prod.name}</td>
+            <td>${prod.price} د.ل</td>
+            <td>${prod.commission} د.ل</td>
+            <td>${prod.date}</td>
+            <td><span class="${prod.status}">${prod.status === 'active' ? 'مفعل' : 'غير مفعل'}</span></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+    }
+
+    function createPagination() {
+      const paginationContainer = document.getElementById('paginationContainer');
+      paginationContainer.innerHTML = '';
+
+      const totalPages = Math.ceil(allProducts.length / productsPerPage);
+
+      if (totalPages <= 1) {
+        return; // لا نعرض الصفحات إذا كان هناك صفحة واحدة فقط
+      }
+
+      // زر السابق
+      const prevBtn = document.createElement('button');
+      prevBtn.className = 'pagination-btn';
+      prevBtn.innerHTML = '«';
+      prevBtn.disabled = currentPage === 1;
+      prevBtn.onclick = () => goToPage(currentPage - 1);
+      paginationContainer.appendChild(prevBtn);
+
+      // أرقام الصفحات
+      for (let i = 1; i <= totalPages; i++) {
+        const pageBtn = document.createElement('button');
+        pageBtn.className = 'pagination-btn';
+        if (i === currentPage) {
+          pageBtn.classList.add('active');
+        }
+        pageBtn.textContent = i;
+        pageBtn.onclick = () => goToPage(i);
+        paginationContainer.appendChild(pageBtn);
+      }
+
+      // زر التالي
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'pagination-btn';
+      nextBtn.innerHTML = '»';
+      nextBtn.disabled = currentPage === totalPages;
+      nextBtn.onclick = () => goToPage(currentPage + 1);
+      paginationContainer.appendChild(nextBtn);
+
+      // معلومات الصفحة
+      const pageInfo = document.createElement('div');
+      pageInfo.className = 'page-info';
+      pageInfo.textContent = `صفحة ${currentPage} من ${totalPages}`;
+      paginationContainer.appendChild(pageInfo);
+    }
+
+    function goToPage(page) {
+      const totalPages = Math.ceil(allProducts.length / productsPerPage);
+      if (page >= 1 && page <= totalPages) {
+        currentPage = page;
+        displayProducts();
+        createPagination();
+        
+        // التمرير لأعلى الجدول
+        document.querySelector('.table-container').scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }
+    }
+
+    window.onload = loadProducts;
+  </script>
+
+</body>
+</html>

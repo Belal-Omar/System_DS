@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance</title>
+    <link rel="icon" type="image/png" href="brand_logo.php?f=logo">
+    <link rel="shortcut icon" type="image/png" href="brand_logo.php?f=favicon">
+    <link rel="apple-touch-icon" href="brand_logo.php?f=logo">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6 font-sans">
+
+  <h1 class="text-2xl font-bold mb-4">جدول المصاريف</h1>
+
+  <div class="overflow-x-auto">
+    <table class="min-w-full bg-white rounded shadow" id="financeTable">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="py-2 px-4 border">التكلفة</th>
+          <th class="py-2 px-4 border">الشحن</th>
+          <th class="py-2 px-4 border">العمولة</th>
+          <th class="py-2 px-4 border">التغليف</th>
+          <th class="py-2 px-4 border">التالف</th>
+          <th class="py-2 px-4 border">الإعلانات</th>
+        </tr>
+      </thead>
+      <tbody>
+      </tbody>
+    </table>
+  </div>
+
+<script>
+const tableBody = document.querySelector('#financeTable tbody');
+
+// جلب البيانات من LocalStorage وعرضها
+const financeData = JSON.parse(localStorage.getItem('financeData')) || [];
+financeData.forEach(data => {
+  const row = document.createElement('tr');
+  row.innerHTML = `
+    <td class="border px-4 py-2">${data.cost}</td>
+    <td class="border px-4 py-2">${data.shipping}</td>
+    <td class="border px-4 py-2">${data.commission}</td>
+    <td class="border px-4 py-2">${data.packaging}</td>
+    <td class="border px-4 py-2">${data.damaged}</td>
+    <td class="border px-4 py-2">${data.ads}</td>
+  `;
+  tableBody.appendChild(row);
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auth2 Verify 2FA</title>
+    <link rel="icon" type="image/png" href="brand_logo.php?f=logo">
+    <link rel="shortcut icon" type="image/png" href="brand_logo.php?f=favicon">
+    <link rel="apple-touch-icon" href="brand_logo.php?f=logo">
+</head>
+<body>
+  <h2>2FA Verification</h2>
+  <p id="who"></p>
+  <form id="f">
+    <input name="code" placeholder="6-digit code" required><br><br>
+    <button type="submit">Verify</button>
+  </form>
+  <pre id="result"></pre>
+
+  <script>
+    const pendingEmail = localStorage.getItem('auth2_pending_email') || '';
+    if (pendingEmail) {
+      document.getElementById('who').textContent = 'Current account: ' + pendingEmail;
+    }
+    const form = document.getElementById('f');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = Object.fromEntries(new FormData(form).entries());
+      payload.temp_login_token = localStorage.getItem('auth2_temp_token') || '';
+      const res = await fetch('auth2_verify_2fa_api.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+      if (data.token) {
+        localStorage.setItem('auth2_token', data.token);
+        localStorage.removeItem('auth2_temp_token');
+        localStorage.removeItem('auth2_pending_email');
+        const target = data.redirect_to || 'auth2_dashboard.php';
+        window.location.href = target;
+      }
+    });
+  </script>
+</body>
+</html>

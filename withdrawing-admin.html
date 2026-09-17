@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>إدارة طلبات السحب</title>
+    <link rel="icon" type="image/png" href="brand_logo.php?f=logo">
+    <link rel="shortcut icon" type="image/png" href="brand_logo.php?f=favicon">
+    <link rel="apple-touch-icon" href="brand_logo.php?f=logo">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="notifications.js?v=2"></script>
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: "Cairo", sans-serif;
+      background: #f1f5f9;
+      padding-top: 5rem;
+      color: #1f2937;
+    }
+
+    nav {
+      position: fixed;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 70rem;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 1rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .logo-text {
+      font-size: 1.4rem;
+      font-weight: 900;
+      color: #166534;
+    }
+
+    table {
+      width: 90%;
+      margin: 2rem auto;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 1rem;
+      overflow: hidden;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    th, td {
+      text-align: center;
+      padding: 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    th {
+      background-color: #ecfdf5;
+      color: #166534;
+      font-weight: 700;
+    }
+
+    .status {
+      font-weight: 700;
+      padding: 0.3rem 0.6rem;
+      border-radius: 0.4rem;
+    }
+
+    .pending {
+      background-color: #fef9c3;
+      color: #92400e;
+    }
+
+    .completed {
+      background-color: #bbf7d0;
+      color: #166534;
+    }
+
+    .rejected {
+      background-color: #fecaca;
+      color: #991b1b;
+    }
+
+    .btn {
+      padding: 0.4rem 0.8rem;
+      border-radius: 0.5rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+      color: white;
+    }
+
+    .btn.complete { background-color: #16a34a; }
+    .btn.pending { background-color: #f59e0b; }
+    .btn.reject { background-color: #dc2626; }
+
+    .btn:hover { opacity: 0.9; }
+  </style>
+</head>
+
+<body>
+
+  <nav>
+    <span class="logo-text">لوحة الأدمن - إدارة السحب</span>
+    <a href="Home1.html" class="font-bold text-green-700 hover:underline">🏠 العودة للوحة التحكم</a>
+  </nav>
+
+  <main class="mt-10">
+    <h1 class="text-2xl font-bold text-center mb-6 text-green-700">طلبات السحب</h1>
+
+    <table>
+      <thead>
+        <tr>
+          <th>رقم الطلب</th>
+          <th>المبلغ</th>
+          <th>رقم فودافون كاش</th>
+          <th>الحالة الحالية</th>
+          <th>تغيير الحالة</th>
+        </tr>
+      </thead>
+      <tbody id="withdrawalsBody">
+        <!-- الطلبات هنا -->
+      </tbody>
+    </table>
+  </main>
+
+  <script>
+    // 🟢 تحميل طلبات السحب من LocalStorage
+    let dashboardData = JSON.parse(localStorage.getItem("dashboardData")) || { withdrawals: [] };
+
+    const tbody = document.getElementById("withdrawalsBody");
+
+    function renderWithdrawals() {
+      tbody.innerHTML = "";
+
+      if (!dashboardData.withdrawals || dashboardData.withdrawals.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-gray-500">لا توجد طلبات سحب بعد</td></tr>`;
+        return;
+      }
+
+      dashboardData.withdrawals.forEach((w, i) => {
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+          <td>${w.id}</td>
+          <td>${w.amount.toFixed(2)} د.ل</td>
+          <td>${w.phone}</td>
+          <td><span class="status ${w.status === 'تم التحويل' ? 'completed' : w.status === 'مرفوض' ? 'rejected' : 'pending'}">${w.status}</span></td>
+          <td class="flex justify-center gap-2">
+            <button class="btn complete" onclick="updateStatus(${i}, 'تم التحويل')">تم التحويل</button>
+            <button class="btn pending" onclick="updateStatus(${i}, 'معلق')">معلق</button>
+            <button class="btn reject" onclick="updateStatus(${i}, 'مرفوض')">مرفوض</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function updateStatus(index, status) {
+      dashboardData.withdrawals[index].status = status;
+
+      // ✅ تحديث الإجمالي في حالة "تم التحويل"
+      if (status === "تم التحويل") {
+        const amount = dashboardData.withdrawals[index].amount;
+        dashboardData.totalWithdrawn = (dashboardData.totalWithdrawn || 0) + amount;
+        dashboardData.availableWithdraw = Math.max((dashboardData.availableWithdraw || 0) - amount, 0);
+      }
+
+      localStorage.setItem("dashboardData", JSON.stringify(dashboardData));
+      renderWithdrawals();
+      showSuccess("تم تحديث حالة الطلب بنجاح ✅");
+    }
+
+    renderWithdrawals();
+  </script>
+
+</body>
+</html>

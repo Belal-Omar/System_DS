@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auth2 Register</title>
+    <link rel="icon" type="image/png" href="brand_logo.php?f=logo">
+    <link rel="shortcut icon" type="image/png" href="brand_logo.php?f=favicon">
+    <link rel="apple-touch-icon" href="brand_logo.php?f=logo">
+</head>
+<body>
+  <h2>Register</h2>
+  <form id="f">
+    <input name="name" placeholder="Name" required><br><br>
+    <input name="email" type="email" placeholder="Email" required><br><br>
+    <input name="password" type="password" placeholder="Password" required><br><br>
+    <select name="role" required>
+      <option value="">Select Role</option>
+      <option value="Admin">Admin</option>
+      <option value="Manager">Manager</option>
+      <option value="User">User</option>
+    </select><br><br>
+    <button type="submit">Register</button>
+  </form>
+
+  <p id="status"></p>
+  <img id="qr" alt="2FA QR" style="max-width:250px;display:none;">
+
+  <script>
+    const form = document.getElementById('f');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = Object.fromEntries(new FormData(form).entries());
+      const res = await fetch('auth2_register_api.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      const status = document.getElementById('status');
+      status.textContent = data.message || '';
+      if (data.twofa && data.twofa.qr_url) {
+        const qr = document.getElementById('qr');
+        qr.onerror = () => {
+          if (data.twofa.otpauth_url) {
+            qr.src = 'https://quickchart.io/qr?size=250&text=' + encodeURIComponent(data.twofa.otpauth_url);
+          }
+        };
+        qr.src = data.twofa.qr_url;
+        qr.style.display = 'block';
+      } else {
+        document.getElementById('qr').style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>

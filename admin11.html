@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>لوحة الادمن - رفع المنتجات</title>
+    <link rel="icon" type="image/png" href="brand_logo.php?f=logo">
+    <link rel="shortcut icon" type="image/png" href="brand_logo.php?f=favicon">
+    <link rel="apple-touch-icon" href="brand_logo.php?f=logo">
+  <link rel="stylesheet" href="style.css" />
+  <script src="notifications.js?v=2"></script>
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <style>
+    body { font-family: "Cairo", sans-serif; margin:0; padding:2rem; background:#f3f4f6; color:#1f2937; }
+    h1 { text-align:center; margin:2rem 0 1rem; font-size:1.8rem; }
+    form { max-width:500px; margin:0 auto 2rem; display:flex; flex-direction:column; gap:0.75rem; background:#fff; padding:1.5rem; border-radius:1rem; box-shadow:0 4px 12px rgba(0,0,0,0.08); }
+    label { font-weight:600; }
+    input, select, button { padding:0.5rem; border-radius:0.5rem; border:1px solid #ccc; font-size:1rem; }
+    button { background:#4b6b2f; color:white; border:none; cursor:pointer; font-weight:600; }
+    button:hover { background:#3a5322; }
+
+    /* =========================
+       Table Style
+    ========================= */
+    .table-container { max-width:1100px; margin:2rem auto 0; overflow-x:auto; border-radius:1rem; box-shadow:0 4px 16px rgba(0,0,0,0.08); background:#fff; }
+    table { width:100%; border-collapse:collapse; min-width:600px; }
+    thead { background:#e5e7eb; position:sticky; top:0; z-index:1; }
+    th, td { padding:0.75rem 1rem; text-align:center; border-bottom:1px solid #d1d5db; font-size:0.95rem; }
+    th { font-weight:700; }
+    tbody tr:nth-child(even){ background:#f9fafb; }
+    tbody tr:hover { background:#f3f4f6; }
+    td img { width:50px; height:50px; object-fit:cover; border-radius:0.5rem; border:1px solid #ccc; }
+    .active { color:#16a34a; font-weight:700; }
+    .inactive { color:#ef4444; font-weight:700; }
+    .action-btn { cursor:pointer; border:none; background:none; font-size:1.1rem; margin:0 0.2rem; }
+    .delete-btn { color:#ef4444; }
+    .edit-btn { color:#16a34a; }
+
+    footer { margin-top:3rem; background-color:#111827; color:white; padding:1.5rem 0; text-align:center; border-radius:1rem; }
+    footer .social-links { display:flex; justify-content:center; gap:1.5rem; font-size:1.5rem; margin-bottom:0.5rem; }
+    footer .social-links a { color:white; text-decoration:none; }
+    footer .social-links a:hover { color:#9ae6b4; }
+
+    @media(max-width:768px){ th, td { font-size:0.85rem; padding:0.5rem 0.75rem; } td img{width:40px;height:40px;} }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="logo-text">لوحة الادمن</div>
+  </nav>
+
+  <h1>رفع منتج جديد</h1>
+
+  <form id="productForm">
+    <label>اسم المنتج:</label>
+    <input type="text" id="name" required />
+
+    <label>السعر:</label>
+    <input type="number" id="price" required />
+
+    <label>العمولة:</label>
+    <input type="number" id="commission" required />
+
+    <label>الصورة:</label>
+    <input type="file" id="image" accept="image/*" required />
+
+    <label>الحالة:</label>
+    <select id="status">
+      <option value="active">مفعل</option>
+      <option value="inactive">غير مفعل</option>
+    </select>
+
+    <button type="submit">رفع المنتج</button>
+  </form>
+
+  <h1>قائمة المنتجات</h1>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>الصورة</th>
+          <th>اسم المنتج</th>
+          <th>السعر</th>
+          <th>العمولة</th>
+          <th>تاريخ الرفع</th>
+          <th>الحالة</th>
+          <th>تحكم</th>
+        </tr>
+      </thead>
+      <tbody id="productsTableBody"></tbody>
+    </table>
+  </div>
+
+  <footer>
+    <div class="social-links">
+      <a href="#"><i class='bx bxl-facebook-circle'></i></a>
+      <a href="#"><i class='bx bxl-instagram'></i></a>
+      <a href="#"><i class='bx bxl-tiktok'></i></a>
+      <a href="#"><i class='bx bxl-telegram'></i></a>
+    </div>
+    <p>© جميع الحقوق محفوظة</p>
+  </footer>
+
+  <script>
+    const form = document.getElementById('productForm');
+    const tbody = document.getElementById('productsTableBody');
+
+    function loadProducts() {
+      tbody.innerHTML = '';
+      const products = JSON.parse(localStorage.getItem('products')) || [];
+
+      if(products.length === 0){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="7">لا توجد منتجات حتى الآن</td>`;
+        tbody.appendChild(tr);
+      } else {
+        products.forEach((prod, index)=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><img src="${prod.image}" alt="${prod.name}" /></td>
+            <td>${prod.name}</td>
+            <td>${prod.price} د.ل</td>
+            <td>${prod.commission} د.ل</td>
+            <td>${prod.date}</td>
+            <td><span class="${prod.status}">${prod.status==='active'?'مفعل':'غير مفعل'}</span></td>
+            <td>
+              <button class="action-btn edit-btn" onclick="toggleStatus(${index})" title="تغيير الحالة"><i class='bx bx-edit'></i></button>
+              <button class="action-btn delete-btn" onclick="deleteProduct(${index})" title="حذف"><i class='bx bx-trash'></i></button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+    }
+
+    function toggleStatus(index){
+      let products = JSON.parse(localStorage.getItem('products')) || [];
+      if(products[index].status === 'active') products[index].status = 'inactive';
+      else products[index].status = 'active';
+      localStorage.setItem('products', JSON.stringify(products));
+      loadProducts();
+    }
+
+    function deleteProduct(index){
+      let products = JSON.parse(localStorage.getItem('products')) || [];
+      if(confirm('هل أنت متأكد من حذف هذا المنتج؟')){
+        products.splice(index,1);
+        localStorage.setItem('products', JSON.stringify(products));
+        loadProducts();
+      }
+    }
+
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      const name = document.getElementById('name').value;
+      const price = document.getElementById('price').value;
+      const commission = document.getElementById('commission').value;
+      const status = document.getElementById('status').value;
+      const imageInput = document.getElementById('image');
+
+      const reader = new FileReader();
+      reader.onload = function(){
+        const imageData = reader.result;
+        let products = JSON.parse(localStorage.getItem('products')) || [];
+        products.push({
+          name, price, commission, status, image:imageData,
+          date:new Date().toLocaleDateString()
+        });
+        localStorage.setItem('products', JSON.stringify(products));
+        showSuccess('تم رفع المنتج بنجاح ✅');
+        form.reset();
+        loadProducts();
+      }
+      reader.readAsDataURL(imageInput.files[0]);
+    });
+
+    window.onload = loadProducts;
+  </script>
+
+</body>
+</html>

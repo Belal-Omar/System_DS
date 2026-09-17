@@ -1,0 +1,1527 @@
+<?php
+session_start();
+include("config.php");
+
+// التحقق من تسجيل الدخول ونوع المستخدم
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.html");
+    exit;
+}
+
+$user_id = $_SESSION['user_id'] ?? null;
+$user = null;
+$user_query = null;
+
+if ($user_id && isset($conn)) {
+    $user_id = (int)$user_id;
+    $user_query = $conn->query("SELECT * FROM users WHERE id = $user_id");
+    if ($user_query) {
+        $user = $user_query->fetch_assoc();
+    }
+}
+
+// منع التاجر من دخول صفحات المسوق
+if ($user && ($user['user_type'] ?? '') == 'تاجر') {
+    header("Location: home111.php");
+    exit;
+}
+
+// جلب بيانات المستخدم للـ navbar
+$user_name = '';
+if ($user_id && $user) {
+    $user_name = $user['fullname'] ?? '';
+}
+
+// الحصول على الصفحة الحالية
+$current_page = basename($_SERVER['PHP_SELF'] ?? $_SERVER['SCRIPT_NAME'] ?? 'index.php');
+$current_page = str_replace(['.php', '.html'], '', $current_page);
+?>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>سلة المشتريات</title>
+    <?php include __DIR__ . '/favicon_tags.php'; ?>
+  <link rel="stylesheet" href="Stylepp.css">
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <script src="notifications.js?v=2"></script>
+  <style>
+    body {
+      padding-top: 100px;
+    }
+    
+    /* Navbar Styles */
+    .main-navbar {
+      position: fixed;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 72rem;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+      border-radius: 1rem;
+      z-index: 1000;
+      padding: 0.8rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .main-navbar.hidden {
+      transform: translateX(-50%) translateY(-150%);
+      opacity: 0;
+    }
+    .navbar-logo {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #4b6b2f;
+      letter-spacing: 1px;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .navbar-logo i {
+      font-size: 1.5rem;
+    }
+    .navbar-logo:hover {
+      color: #3a5524;
+      transform: scale(1.03);
+    }
+    .navbar-links {
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+    }
+    .navbar-link {
+      font-weight: 600;
+      color: #1e293b;
+      text-decoration: none;
+      font-size: 1.1rem;
+      transition: all 0.3s ease;
+      position: relative;
+      padding: 0.5rem 0;
+    }
+    .navbar-link.active {
+      color: #4b6b2f;
+      font-weight: 700;
+    }
+    .navbar-link.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background-color: #4b6b2f;
+      border-radius: 3px;
+      animation: slideIn 0.3s ease;
+    }
+    .navbar-link:hover {
+      color: #4b6b2f;
+      transform: translateY(-2px);
+    }
+    .navbar-link:hover::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background-color: #4b6b2f;
+      border-radius: 3px;
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+      from { width: 0; opacity: 0; }
+      to { width: 100%; opacity: 1; }
+    }
+    .navbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+    }
+    .navbar-cart {
+      position: relative;
+      color: #4b6b2f;
+      font-size: 1.5rem;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+    }
+    .navbar-cart:hover {
+      background-color: rgba(75, 107, 47, 0.1);
+      transform: translateY(-2px);
+    }
+    .navbar-cart .cart-count {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      background: #ef4444;
+      color: white;
+      font-size: 0.7rem;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      border: 2px solid white;
+    }
+    .navbar-btn {
+      padding: 0.6rem 1.4rem;
+      border-radius: 0.6rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      font-size: 1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .navbar-btn i {
+      font-size: 1.1rem;
+    }
+    .navbar-btn-login {
+      color: #4b6b2f;
+      border: 2px solid #4b6b2f;
+    }
+    .navbar-btn-login:hover {
+      background-color: rgba(75, 107, 47, 0.1);
+      transform: translateY(-2px);
+    }
+    .navbar-btn-register {
+      background-color: #4b6b2f;
+      color: white;
+    }
+    .navbar-btn-register:hover {
+      background-color: #3a5524;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(75, 107, 47, 0.2);
+    }
+    .navbar-btn-logout {
+      background-color: #ef4444;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .navbar-btn-logout:hover {
+      background-color: #dc2626;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    }
+    .navbar-user {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      color: #4b6b2f;
+      text-decoration: none;
+      font-weight: 600;
+      padding: 0.5rem 1rem;
+      border-radius: 0.6rem;
+      transition: all 0.3s ease;
+    }
+    .navbar-user:hover {
+      background-color: rgba(75, 107, 47, 0.1);
+      transform: translateY(-2px);
+    }
+    .navbar-user i {
+      font-size: 1.4rem;
+    }
+    .hidden {
+      transform: translate(-50%, -150%) !important;
+      opacity: 0;
+      pointer-events: none;
+    }
+    @media (max-width: 1024px) {
+      .main-navbar {
+        padding: 0.8rem 1.5rem;
+      }
+      .navbar-logo {
+        font-size: 1.6rem;
+      }
+      .navbar-links {
+        gap: 1.2rem;
+      }
+      .navbar-link {
+        font-size: 1rem;
+      }
+      .navbar-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+  <style>
+    /* Custom Styles for Shipping City Dropdown */
+    #shipping-city-dropdown {
+      border: 2px solid #4b6b2f !important;
+      border-radius: 12px !important;
+      box-shadow: 0 8px 25px rgba(75, 107, 47, 0.15) !important;
+      max-height: 280px !important;
+      overflow-y: auto !important;
+      background: #ffffff !important;
+    }
+    
+    .city-item {
+      padding: 12px 16px !important;
+      cursor: pointer !important;
+      border-bottom: 1px solid #f0f0f0 !important;
+      transition: all 0.3s ease !important;
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+    }
+    
+    .city-item:last-child {
+      border-bottom: none !important;
+    }
+    
+    .city-item:hover {
+      background: linear-gradient(90deg, #f8faf9 0%, #f0f7e8 100%) !important;
+      transform: translateX(4px) !important;
+    }
+    
+    .city-name {
+      font-weight: 600 !important;
+      color: #1f2937 !important;
+      font-size: 15px !important;
+    }
+    
+    .city-cost {
+      font-weight: 700 !important;
+      color: #4b6b2f !important;
+      background: rgba(75, 107, 47, 0.1) !important;
+      padding: 4px 8px !important;
+      border-radius: 6px !important;
+      font-size: 13px !important;
+    }
+    
+    .city-item-no-results {
+      padding: 20px !important;
+      text-align: center !important;
+      color: #6b7280 !important;
+      font-size: 14px !important;
+      font-style: italic !important;
+    }
+    
+    #shipping-city-input {
+      border: 2px solid #e5e7eb !important;
+      border-radius: 10px !important;
+      transition: all 0.3s ease !important;
+      font-size: 15px !important;
+      padding: 12px 16px !important;
+    }
+    
+    #shipping-city-input:focus {
+      border-color: #4b6b2f !important;
+      box-shadow: 0 0 0 3px rgba(75, 107, 47, 0.1) !important;
+      outline: none !important;
+    }
+    
+    #shipping-city-input::placeholder {
+      color: #9ca3af !important;
+    }
+    
+    /* Scrollbar styling */
+    #shipping-city-dropdown::-webkit-scrollbar {
+      width: 6px !important;
+    }
+    
+    #shipping-city-dropdown::-webkit-scrollbar-track {
+      background: #f1f1f1 !important;
+      border-radius: 3px !important;
+    }
+    
+    #shipping-city-dropdown::-webkit-scrollbar-thumb {
+      background: #4b6b2f !important;
+      border-radius: 3px !important;
+    }
+    
+    #shipping-city-dropdown::-webkit-scrollbar-thumb:hover {
+      background: #3a5524 !important;
+    }
+    
+    /* Order Summary Section Styles */
+    .order-summary-section {
+      margin-top: 40px;
+      padding: 20px;
+      background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      animation: slideUp 0.5s ease;
+    }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .summary-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .summary-title {
+      text-align: center;
+      font-size: 28px;
+      font-weight: bold;
+      color: #4b6b2f;
+      margin-bottom: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 30px;
+    }
+    
+    @media (max-width: 768px) {
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .summary-card {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+    }
+    
+    .summary-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+      border-color: #4b6b2f;
+    }
+    
+    .card-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      color: #4b6b2f;
+    }
+    
+    .card-content {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .input-group label {
+      font-weight: 500;
+      color: #374151;
+      font-size: 14px;
+    }
+    
+    .modern-input {
+      padding: 12px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 15px;
+      transition: all 0.3s ease;
+      background: #f9fafb;
+    }
+    
+    .modern-input:focus {
+      outline: none;
+      border-color: #4b6b2f;
+      box-shadow: 0 0 0 3px rgba(75, 107, 47, 0.1);
+      background: white;
+    }
+    
+    .modern-input::placeholder {
+      color: #9ca3af;
+    }
+    
+    .order-info {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    
+    .info-row:last-child {
+      border-bottom: none;
+    }
+    
+    .info-row.total-row {
+      background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 10px;
+      border: 2px solid #4b6b2f;
+    }
+    
+    .products-card {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+      margin-bottom: 30px;
+      border: 2px solid transparent;
+      transition: all 0.3s ease;
+    }
+    
+    .products-card:hover {
+      border-color: #4b6b2f;
+      transform: translateY(-3px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+    }
+    
+    .products-list {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    .product-item {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 15px;
+      background: #f9fafb;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      transition: all 0.3s ease;
+    }
+    
+    .product-item:hover {
+      background: #f3f4f6;
+      border-color: #4b6b2f;
+      transform: translateX(5px);
+    }
+    
+    .product-item img {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 2px solid #e5e7eb;
+    }
+    
+    .product-details {
+      flex: 1;
+    }
+    
+    .product-name {
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 5px;
+    }
+    
+    .product-meta {
+      font-size: 14px;
+      color: #6b7280;
+    }
+    
+    .product-price {
+      font-weight: 600;
+      color: #4b6b2f;
+      font-size: 16px;
+    }
+    
+    .summary-actions {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      padding: 20px 0;
+    }
+    
+    .cancel-btn {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);
+      display: flex;
+      align-items: center;
+    }
+    
+    .cancel-btn:hover {
+      background: linear-gradient(135deg, #dc2626, #b91c1c);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(239, 68, 68, 0.3);
+    }
+    
+    .confirm-btn {
+      background: linear-gradient(135deg, #4b6b2f, #3a5524);
+      color: white;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(75, 107, 47, 0.2);
+      display: flex;
+      align-items: center;
+    }
+    
+    .confirm-btn:hover:not(:disabled) {
+      background: linear-gradient(135deg, #3a5524, #2f4419);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(75, 107, 47, 0.3);
+    }
+    
+    .confirm-btn:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Navbar -->
+  <nav class="main-navbar" id="mainNavbar">
+    <div style="display: flex; align-items: center; gap: 2.5rem;">
+      <a href="Home1.html" class="navbar-logo">
+        <img src="brand_logo.php?f=logo" alt="Miskova Global" style="height: 42px; width: auto; object-fit: contain; border-radius: 6px;">
+        <span>لوحة المسوق</span>
+      </a>
+      <div class="navbar-links">
+        <a href="Home1.html" class="navbar-link <?php echo ($current_page == 'Home1' || $current_page == 'home') ? 'active' : ''; ?>">
+          <i class='bx bx-home-alt'></i>
+          الرئيسية
+        </a>
+        <a href="product.html" class="navbar-link <?php echo ($current_page == 'product') ? 'active' : ''; ?>">
+          <i class='bx bx-package'></i>
+          المنتجات
+        </a>
+        <a href="orders.html" class="navbar-link <?php echo ($current_page == 'orders') ? 'active' : ''; ?>">
+          <i class='bx bx-receipt'></i>
+          الطلبات
+        </a>
+        <a href="withdrawals.php" class="navbar-link <?php echo ($current_page == 'withdrawals') ? 'active' : ''; ?>">
+          <i class='bx bx-money-withdraw'></i>
+          السحب
+        </a>
+        <a href="product_stats.php" class="navbar-link <?php echo ($current_page == 'product_stats') ? 'active' : ''; ?>">
+          <i class='bx bx-stats'></i>
+          إحصائيات المنتجات
+        </a>
+      </div>
+    </div>
+    <div class="navbar-actions">
+      <a href="cart.html" class="navbar-cart" title="سلة المشتريات">
+        <i class='bx bx-cart'></i>
+        <span class="cart-count">0</span>
+      </a>
+      <?php if ($user_id && $user): ?>
+        <a href="profile_marketer.php" class="navbar-user">
+          <i class='bx bx-user-circle'></i>
+          <span class="hidden md:inline"><?php echo htmlspecialchars($user_name); ?></span>
+        </a>
+        <a href="logout.php" class="navbar-btn navbar-btn-logout">
+          <i class='bx bx-log-out'></i>
+          <span>تسجيل الخروج</span>
+        </a>
+      <?php else: ?>
+        <a href="login.html" class="navbar-btn navbar-btn-login">
+          <i class='bx bx-log-in-circle'></i>
+          <span>تسجيل الدخول</span>
+        </a>
+        <a href="register.html" class="navbar-btn navbar-btn-register">
+          <i class='bx bx-user-plus'></i>
+          <span>إنشاء حساب</span>
+        </a>
+      <?php endif; ?>
+    </div>
+  </nav>
+
+  <script>
+    // Navbar scroll behavior
+    let lastScroll = 0;
+    const navbar = document.getElementById('mainNavbar');
+    let isScrolling = false;
+    
+    function handleScroll() {
+      if (isScrolling) return;
+      
+      isScrolling = true;
+      
+      requestAnimationFrame(() => {
+        const currentScroll = window.pageYOffset;
+        
+        if (currentScroll <= 0) {
+          navbar.classList.remove('hidden');
+          navbar.style.transform = 'translateX(-50%)';
+          isScrolling = false;
+          return;
+        }
+        
+        if (currentScroll > lastScroll && currentScroll > 100) {
+          // Scrolling down
+          navbar.classList.add('hidden');
+        } else {
+          // Scrolling up
+          navbar.classList.remove('hidden');
+          navbar.style.transform = 'translateX(-50%)';
+        }
+        
+        lastScroll = currentScroll;
+        isScrolling = false;
+      });
+    }
+    
+    // Throttle scroll events for better performance
+    let scrollTimeout;
+    window.addEventListener('scroll', () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(handleScroll, 50);
+    }, { passive: true });
+    
+    // Cart count functionality
+    function updateCartCount() {
+      try {
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const cartCountEls = document.querySelectorAll('.cart-count');
+        const totalItems = cart.reduce((total, item) => total + (parseInt(item.quantity) || 0), 0);
+        
+        cartCountEls.forEach(el => {
+          el.textContent = totalItems;
+          // Add animation when cart count changes
+          if (parseInt(el.textContent) !== parseInt(el.dataset.lastCount || '0')) {
+            el.style.transform = 'scale(1.3)';
+            setTimeout(() => {
+              el.style.transform = 'scale(1)';
+            }, 200);
+          }
+          el.dataset.lastCount = totalItems;
+        });
+      } catch (e) {
+        console.error('Error updating cart count:', e);
+      }
+    }
+    
+    // Initialize cart count on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initial cart count update
+      updateCartCount();
+      
+      // Update cart count when storage changes (from other tabs/windows)
+      window.addEventListener('storage', updateCartCount);
+      
+      // Update cart count every second (to catch any changes from other tabs)
+      setInterval(updateCartCount, 1000);
+      
+      // Add click animation to cart icon
+      const cartIcon = document.querySelector('.navbar-cart');
+      if (cartIcon) {
+        cartIcon.addEventListener('click', function() {
+          this.style.transform = 'scale(0.9)';
+          setTimeout(() => {
+            this.style.transform = '';
+          }, 200);
+        });
+      }
+    });
+  </script>
+
+<main class="page-container">
+  <h1 class="page-title">🛒 سلة المشتريات</h1>
+
+  <section class="cart-area">
+    <table class="cart-table">
+      <thead>
+        <tr>
+          <th>المنتج</th>
+          <th>اللون</th>
+          <th>المقاس</th>
+          <th>الكمية</th>
+          <th>السعر</th>
+          <th>عمولة القطعة</th>
+          <th>استقطاع النظام</th>
+          <th>الإجمالي</th>
+          <th>إزالة</th>
+        </tr>
+      </thead>
+      <tbody id="cart-items"></tbody>
+    </table>
+
+    <div class="cart-summary">
+      <div>
+        <p>الإجمالي الكلي: <strong id="total-price">0.00</strong> د.ل</p>
+        <p>إجمالي العمولة: <strong id="total-commission">0.00</strong> د.ل</p>
+        <div class="mt-3">
+          <label class="block text-gray-700 mb-2 font-medium">اختر مدينة الشحن:</label>
+          <div class="relative">
+            <input type="text" id="shipping-city-input" 
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#4b6b2f]"
+                   placeholder="ابحث عن مدينة أو اكتب اسمها..."
+                   autocomplete="off"
+                   readonly
+                   onfocus="this.removeAttribute('readonly');"
+                   onblur="this.setAttribute('readonly', true);">
+            <div id="shipping-city-dropdown" 
+                 class="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-lg mt-1 max-h-60 overflow-y-auto z-50 shadow-lg hidden">
+            </div>
+            <select id="shipping-city" class="hidden" autocomplete="off">
+              <option value="">-- اختر المدينة --</option>
+            </select>
+          </div>
+        </div>
+        <p class="mt-2" id="shipping-cost-line" style="display: none;">
+          مصاريف الشحن: <strong id="shipping-cost-total">0.00</strong> د.ل
+        </p>
+        <p class="mt-2 font-bold text-lg">
+          الإجمالي النهائي: <strong id="final-total">0.00</strong> د.ل
+        </p>
+      </div>
+      <div class="cart-actions">
+        <button id="clear-cart" class="btn ghost">مسح السلة</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- جدول ملخص الطلب يظهر عند اختيار المدينة -->
+  <section id="order-summary-section" class="order-summary-section" style="display: none;">
+    <div class="summary-container">
+      <h2 class="summary-title">
+        <i class='bx bx-check-circle' style="margin-left: 8px;"></i>
+        ملخص طلبك
+      </h2>
+      
+      <div class="summary-grid">
+        <!-- بيانات العميل -->
+        <div class="summary-card">
+          <h3 class="card-title">
+            <i class='bx bx-user' style="margin-left: 4px;"></i>
+            بيانات العميل
+          </h3>
+          <div class="card-content">
+            <div class="input-group">
+              <label>الاسم الكامل</label>
+              <input id="custName" type="text" placeholder="أدخل اسمك الكامل" 
+                     class="modern-input" style="width: 100%;" autocomplete="off">
+            </div>
+            <div class="input-group">
+              <label>رقم الهاتف</label>
+              <input id="custPhone" type="tel" placeholder="09XXXXXXXX" 
+                     class="modern-input" style="width: 100%;" autocomplete="off">
+            </div>
+            <div class="input-group">
+              <label>المنطقة</label>
+              <input id="custRegion" type="text" placeholder="المنطقة" 
+                     class="modern-input" style="width: 100%;" autocomplete="off">
+            </div>
+            <div class="input-group">
+              <label>العنوان الكامل</label>
+              <input id="custAddress" type="text" placeholder="العنوان التفصيلي" 
+                     class="modern-input" style="width: 100%;" autocomplete="off">
+            </div>
+          </div>
+        </div>
+
+        <!-- تفاصيل الطلب -->
+        <div class="summary-card">
+          <h3 class="card-title">
+            <i class='bx bx-package' style="margin-left: 4px;"></i>
+            تفاصيل الطلب
+          </h3>
+          <div class="card-content">
+            <div class="order-info">
+              <div class="info-row">
+                <span>مدينة الشحن:</span>
+                <strong id="summary-city">---</strong>
+              </div>
+              <div class="info-row">
+                <span>مصاريف الشحن:</span>
+                <strong id="summary-shipping">0.00 د.ل</strong>
+              </div>
+              <div class="info-row">
+                <span>إجمالي المنتجات:</span>
+                <strong id="summary-products">0.00 د.ل</strong>
+              </div>
+              <div class="info-row">
+                <span>إجمالي العمولة:</span>
+                <strong id="summary-commission" style="color: #4b6b2f;">0.00 د.ل</strong>
+              </div>
+              <div class="info-row" id="summary-deduction-row" style="display: none;">
+                <span>استقطاع النظام:</span>
+                <strong id="summary-deduction" style="color: #dc2626;">0.00 د.ل</strong>
+              </div>
+              <div class="info-row total-row" id="summary-net-row" style="display: none; background: #e0f2fe; border-color: #0ea5e9;">
+                <span>صافي ربحك:</span>
+                <strong id="summary-net-profit" style="color: #0369a1; font-size: 17px;">0.00 د.ل</strong>
+              </div>
+              <div class="info-row total-row">
+                <span>الإجمالي النهائي:</span>
+                <strong id="summary-total" style="color: #4b6b2f; font-size: 18px;">0.00 د.ل</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- المنتجات في الطلب -->
+      <div class="products-card">
+        <h3 class="card-title">
+          <i class='bx bx-shopping-bag' style="margin-left: 4px;"></i>
+          المنتجات في طلبك
+        </h3>
+        <div id="summary-products-list" class="products-list">
+          <!-- سيتم ملؤه ديناميكياً -->
+        </div>
+      </div>
+
+      <!-- أزرار الإجراء -->
+      <div class="summary-actions">
+        <button id="cancel-summary" class="btn cancel-btn">
+          <i class='bx bx-x' style="margin-left: 4px;"></i>
+          إلغاء
+        </button>
+        <button id="confirm-summary" class="btn confirm-btn" disabled>
+          <i class='bx bx-check' style="margin-left: 4px;"></i>
+          تأكيد الطلب
+        </button>
+      </div>
+    </div>
+  </section>
+
+<script>
+// ========== مزامنة العمولات القديمة ==========
+document.addEventListener('DOMContentLoaded', async () => {
+    let currentCart = JSON.parse(localStorage.getItem('cart')) || [];
+    let stateChanged = false;
+    for (let raw of currentCart) {
+        try {
+            const res = await fetch(`add_order_simple.php?get_product_commissions=${raw.id || raw.product_id}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success) {
+                    const latestSpecial = parseFloat(data.special_commission) || 0;
+                    const latestMerchant = parseFloat(data.merchant_commission) || 0;
+                    // Always ensure they are synced in case Admin changed them
+                    if (raw.special_commission !== latestSpecial || raw.merchant_commission !== latestMerchant) {
+                        raw.special_commission = latestSpecial;
+                        raw.merchant_commission = latestMerchant;
+                        stateChanged = true;
+                    }
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+    if (stateChanged) {
+        localStorage.setItem('cart', JSON.stringify(currentCart));
+        window.location.reload();
+    }
+});
+
+// ========== إعداد المتغيرات ==========
+const cartCountEls = document.querySelectorAll('.cart-count');
+const cartItemsBody = document.getElementById('cart-items');
+const totalPriceEl = document.getElementById('total-price');
+const totalCommissionEl = document.getElementById('total-commission');
+const clearCartBtn = document.getElementById('clear-cart');
+const custName = document.getElementById('custName');
+const custPhone = document.getElementById('custPhone');
+const custRegion = document.getElementById('custRegion');
+const custAddress = document.getElementById('custAddress');
+
+let cart = JSON.parse(localStorage.getItem('cart')) || [];
+let shippingCities = [];
+let selectedShippingCity = null;
+let selectedShippingCost = 0;
+
+// جلب المدن ومصاريف الشحن
+async function loadShippingCities() {
+  try {
+    console.log('جاري تحميل المدن...');
+    const response = await fetch('get_cities_api.php');
+    
+    // التحقق من الاستجابة
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const responseText = await response.text();
+    console.log('نص استجابة المدن:', responseText);
+    
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('خطأ في تحليل JSON للمدن:', parseError);
+      console.error('النص الأصلي:', responseText);
+      throw new Error('استجابة المدن ليست بتنسيق JSON صحيح');
+    }
+    
+    console.log('بيانات المدن:', data);
+    
+    if (data.success) {
+      shippingCities = data.cities || [];
+      const select = document.getElementById('shipping-city');
+      select.innerHTML = '<option value="">-- اختر المدينة --</option>';
+      shippingCities.forEach(city => {
+        const option = document.createElement('option');
+        option.value = city.id;
+        option.textContent = `${city.city_name} - ${parseFloat(city.shipping_cost).toFixed(2)} د.ل`;
+        option.dataset.cost = city.shipping_cost;
+        select.appendChild(option);
+      });
+      console.log(`تم تحميل ${shippingCities.length} مدينة بنجاح`);
+    } else {
+      console.error('فشل تحميل المدن:', data.message);
+      showError('فشل تحميل المدن: ' + (data.message || 'خطأ غير معروف'));
+    }
+  } catch (error) {
+    console.error('خطأ في تحميل المدن:', error);
+    showError('خطأ في تحميل المدن: ' + error.message);
+  }
+}
+
+// دالة البحث في المدن (محسنة للأحرف العربية)
+function filterCities(query = '') {
+  const dropdown = document.getElementById('shipping-city-dropdown');
+  const input = document.getElementById('shipping-city-input');
+  
+  // إذا كانت القيمة فارغة، نعرض جميع المدن
+  if (!query || query.length < 1) {
+    dropdown.innerHTML = '';
+    shippingCities.forEach(city => {
+      const item = document.createElement('div');
+      item.className = 'city-item';
+      item.innerHTML = `
+        <div class="city-name">${city.city_name}</div>
+        <div class="city-cost">${parseFloat(city.shipping_cost).toFixed(2)} د.ل</div>
+      `;
+      item.addEventListener('click', () => selectCity(city));
+      dropdown.appendChild(item);
+    });
+    dropdown.classList.remove('hidden');
+    return;
+  }
+  
+  // تحسين البحث للأحرف العربية - إزالة التشكيل والتطبيع
+  const normalizeArabic = (text) => {
+    return text
+      .replace(/[أإآ]/g, 'ا')
+      .replace(/[ى]/g, 'ي')
+      .replace(/[ة]/g, 'ه')
+      .replace(/[\u064B-\u065F]/g, '') // إزالة التشكيل
+      .toLowerCase();
+  };
+  
+  const normalizedQuery = normalizeArabic(query);
+  
+  const filteredCities = shippingCities.filter(city => {
+    const normalizedCityName = normalizeArabic(city.city_name);
+    return normalizedCityName.includes(normalizedQuery);
+  });
+  
+  if (filteredCities.length === 0) {
+    dropdown.innerHTML = '<div class="city-item-no-results">لا توجد نتائج</div>';
+    dropdown.classList.remove('hidden');
+  } else {
+    dropdown.innerHTML = '';
+    filteredCities.forEach(city => {
+      const item = document.createElement('div');
+      item.className = 'city-item';
+      item.innerHTML = `
+        <div class="city-name">${city.city_name}</div>
+        <div class="city-cost">${parseFloat(city.shipping_cost).toFixed(2)} د.ل</div>
+      `;
+      item.addEventListener('click', () => selectCity(city));
+      dropdown.appendChild(item);
+    });
+    dropdown.classList.remove('hidden');
+  }
+}
+
+// اختيار المدينة
+function selectCity(city) {
+  selectedShippingCity = {
+    id: parseInt(city.id),
+    name: city.city_name,
+    cost: parseFloat(city.shipping_cost)
+  };
+  selectedShippingCost = selectedShippingCity.cost;
+  
+  // تحديث الحقول
+  document.getElementById('shipping-city-input').value = selectedShippingCity.name;
+  document.getElementById('shipping-city').value = selectedShippingCity.id;
+  document.getElementById('shipping-cost-total').textContent = selectedShippingCost.toFixed(2);
+  document.getElementById('shipping-cost-line').style.display = 'block';
+  document.getElementById('shipping-city-dropdown').classList.add('hidden');
+  
+  updateFinalTotal();
+  showOrderSummary();
+}
+
+// عرض ملخص الطلب
+function showOrderSummary() {
+  if (!cart.length) {
+    showWarning('السلة فارغة، يرجى إضافة منتجات أولاً');
+    document.getElementById('order-summary-section').style.display = 'none';
+    return;
+  }
+  const summarySection = document.getElementById('order-summary-section');
+  const summaryCity = document.getElementById('summary-city');
+  const summaryShipping = document.getElementById('summary-shipping');
+  const summaryProducts = document.getElementById('summary-products');
+  const summaryCommission = document.getElementById('summary-commission');
+  const summaryDeduction = document.getElementById('summary-deduction');
+  const summaryNetProfit = document.getElementById('summary-net-profit');
+  const summaryDeductionRow = document.getElementById('summary-deduction-row');
+  const summaryNetRow = document.getElementById('summary-net-row');
+  const summaryTotal = document.getElementById('summary-total');
+  const productsList = document.getElementById('summary-products-list');
+  
+  // تحديث بيانات الشحن
+  summaryCity.textContent = selectedShippingCity.name;
+  summaryShipping.textContent = selectedShippingCost.toFixed(2) + ' د.ل';
+  
+  // حساب الإجماليات
+  let total = 0, totalCom = 0, totalSpecialCom = 0;
+  cart.forEach((raw) => {
+    const item = normalizeItem(raw);
+    total += item.price * item.quantity;
+    totalCom += item.commission * item.quantity;
+    totalSpecialCom += item.special_commission * item.quantity;
+  });
+  
+  const finalTotal = total + totalCom + totalSpecialCom + selectedShippingCost;
+  
+  // تحديث الإجماليات
+  summaryProducts.textContent = total.toFixed(2) + ' د.ل';
+  summaryCommission.textContent = totalCom.toFixed(2) + ' د.ل';
+  
+  if (totalSpecialCom > 0) {
+    summaryDeductionRow.style.display = 'flex';
+    summaryDeduction.textContent = '-' + totalSpecialCom.toFixed(2) + ' د.ل';
+  } else {
+    summaryDeductionRow.style.display = 'none';
+  }
+  summaryNetRow.style.display = 'none';
+  
+  summaryTotal.textContent = finalTotal.toFixed(2) + ' د.ل';
+  
+  // عرض المنتجات
+  productsList.innerHTML = '';
+  cart.forEach((raw) => {
+    const item = normalizeItem(raw);
+    const productItem = document.createElement('div');
+    productItem.className = 'product-item';
+    productItem.innerHTML = `
+      <img src="${item.image}" alt="${item.name}">
+      <div class="product-details">
+        <div class="product-name">${item.name}</div>
+        <div class="product-meta">اللون: ${item.color} | المقاس: ${item.size} | الكمية: ${item.quantity}</div>
+        <div class="product-commission-edit">
+          <label>عمولة المسوق:</label>
+          <input type="number" 
+                 class="commission-input" 
+                 data-product-id="${item.product_id}" 
+                 value="${item.commission.toFixed(2)}" 
+                 min="0" 
+                 step="0.01"
+                 onchange="updateCommission(${item.product_id}, this.value)">
+          د.ل
+        </div>
+      </div>
+      <div class="product-price">${(item.price * item.quantity + item.commission * item.quantity).toFixed(2)} د.ل</div>
+    `;
+    productsList.appendChild(productItem);
+  });
+  
+  // إظهار القسم
+  summarySection.style.display = 'block';
+  
+  // التمرير إلى الملخص
+  summarySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// تحديث ملخص الطلب عند تغيير البيانات
+function updateSummaryValidation() {
+  const confirmBtn = document.getElementById('confirm-summary');
+  // يجب ملء جميع البيانات وجود منتجات في السلة
+  const ok = custName.value && custPhone.value && custRegion.value && custAddress.value && cart.length > 0;
+  confirmBtn.disabled = !ok;
+  
+  // حماية خيار المدينة من التغيير التلقائي بواسطة المتصفح (Auto-fill)
+  // نستخدم setTimeout للتعامل مع الإكمال التلقائي الذي قد يحدث بعد الحدث الأصلي بفترة وجيزة
+  if (selectedShippingCity) {
+    const enforceCity = () => {
+      const cityInput = document.getElementById('shipping-city-input');
+      const cityIdVal = document.getElementById('shipping-city');
+      const summaryCity = document.getElementById('summary-city');
+      
+      if (cityInput && cityInput.value !== selectedShippingCity.name) {
+        cityInput.value = selectedShippingCity.name;
+      }
+      if (cityIdVal && cityIdVal.value != selectedShippingCity.id) {
+        cityIdVal.value = selectedShippingCity.id;
+      }
+      if (summaryCity && summaryCity.textContent !== selectedShippingCity.name) {
+        summaryCity.textContent = selectedShippingCity.name;
+      }
+    };
+    
+    enforceCity();
+    // تنفيذ المحاولة مرتين إضافيتين لضمان القضاء على أي محاولة من المتصفح
+    setTimeout(enforceCity, 50);
+    setTimeout(enforceCity, 150);
+  }
+}
+
+// إغلاق الملخص
+document.getElementById('cancel-summary').addEventListener('click', () => {
+  const summarySection = document.getElementById('order-summary-section');
+  summarySection.style.display = 'none';
+  
+  // مسح البيانات
+  custName.value = '';
+  custPhone.value = '';
+  custRegion.value = '';
+  custAddress.value = '';
+  updateSummaryValidation();
+});
+
+// تأكيد الطلب من الملخص
+document.getElementById('confirm-summary').addEventListener('click', async () => {
+  if (!custName.value || !custPhone.value || !custRegion.value || !custAddress.value)
+    return showWarning('يرجى ملء جميع البيانات المطلوبة');
+
+  const items = cart.map(normalizeItem);
+  const total = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const totalCom = items.reduce((s, i) => s + i.commission * i.quantity, 0);
+  const totalSpecialCom = items.reduce((s, i) => s + i.special_commission * i.quantity, 0);
+  const finalTotal = total + totalCom + totalSpecialCom + selectedShippingCost;
+
+  const orderData = {
+    name: custName.value,
+    phone: custPhone.value,
+    region: custRegion.value,
+    address: custAddress.value,
+    shipping_city_id: selectedShippingCity.id,
+    shipping_city_name: selectedShippingCity.name,
+    shipping_cost: selectedShippingCost,
+    total: finalTotal,
+    commission_total: totalCom,
+    items: items
+  };
+
+  try {
+    console.log('إرسال البيانات:', orderData);
+    
+    const res = await fetch("add_order_simple.php", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(orderData)
+    });
+
+    const responseText = await res.text();
+    console.log('Raw response from server:', responseText);
+    console.log('Response status:', res.status);
+    
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('خطأ في تحليل JSON:', parseError);
+      console.error('النص الأصلي:', responseText.substring(0, 200));
+      throw new Error('الاستجابة من الخادم ليست JSON صحيح');
+    }
+
+    if (data.success) {
+      let existingOrders = JSON.parse(localStorage.getItem('orders')) || [];
+      existingOrders.push(data.order_data);
+      localStorage.setItem('orders', JSON.stringify(existingOrders));
+
+      // إضافة العمولة للمسوق إذا كانت موجودة
+      if (data.order_data.commission_total > 0) {
+        addCommissionToMarketer(data.order_data.id, data.order_data.commission_total);
+      }
+
+      showSuccess('تم إرسال الطلب بنجاح ');
+      localStorage.removeItem('cart');
+      window.location.href = "orders.html";
+    } else {
+      showError('خطأ أثناء إرسال الطلب: ' + (data.message || 'خطأ غير معروف'));
+    }
+  } catch (err) {
+    console.error('تفاصيل الخطأ:', err);
+    showError('حدث خطأ أثناء إرسال الطلب: ' + err.message);
+  }
+});
+
+// إغلاق الـ dropdown عند الضغط خارج
+document.addEventListener('click', function(e) {
+  const container = document.querySelector('.cart-summary .relative');
+  const dropdown = document.getElementById('shipping-city-dropdown');
+  const input = document.getElementById('shipping-city-input');
+  
+  if (container && !container.contains(e.target) && e.target !== input) {
+    dropdown.classList.add('hidden');
+  }
+});
+
+// عند الكتابة في حقل البحث أو النقر عليه
+document.getElementById('shipping-city-input').addEventListener('input', function() {
+  filterCities(this.value);
+});
+
+document.getElementById('shipping-city-input').addEventListener('click', function() {
+  filterCities(this.value);
+});
+
+// تم حذف مستمع الحدث هنا لمنع المتصفح من تغيير المدينة المختارة تلقائياً عبر الحقول المخفية
+
+// دالة تحديث العمولة
+function updateCommission(productId, newCommission) {
+  const commissionValue = parseFloat(newCommission) || 0;
+  
+  // تحديث العمولة في السلة
+  const itemIndex = cart.findIndex(item => normalizeItem(item).product_id == productId);
+  if (itemIndex !== -1) {
+    cart[itemIndex].commission = commissionValue;
+    localStorage.setItem('cart', JSON.stringify(cart));
+    
+    // إعادة حساب الإجماليات
+    updateFinalTotal();
+    showOrderSummary();
+    renderCart();
+  }
+}
+
+// تحديث العداد
+function updateCartCount() {
+  cartCountEls.forEach(el => el.textContent = cart.length);
+}
+updateCartCount();
+
+// تحميل المدن عند تحميل الصفحة
+loadShippingCities();
+
+// توحيد هيكل العنصر
+function normalizeItem(item) {
+  return {
+    name: item.name || 'منتج',
+    image: item.image || item.img || 'imgs/default.png',
+    color: item.color || '—',
+    size: item.size || '—',
+    price: Number(item.price || 0),
+    commission: Number(item.commission || 0), // عمولة المسوق (قابلة للتعديل)
+    special_commission: Number(item.special_commission || 0), // استقطاع النظام
+    merchant_commission: Number(item.merchant_commission || item.commission || 0), // عمولة التاجر الأصلية
+    quantity: Number(item.quantity || 1),
+    product_id: item.id || 1
+  };
+}
+
+// تحديث الإجمالي النهائي
+function updateFinalTotal() {
+  let total = 0, totalCom = 0, totalSpecialCom = 0;
+  cart.forEach((raw) => {
+    const item = normalizeItem(raw);
+    total += item.price * item.quantity;
+    totalCom += item.commission * item.quantity;
+    totalSpecialCom += item.special_commission * item.quantity;
+  });
+  // الإجمالي النهائي = السعر + العمولة + استقطاع النظام + مصاريف الشحن
+  const finalTotal = total + totalCom + totalSpecialCom + selectedShippingCost;
+  document.getElementById('final-total').textContent = finalTotal.toFixed(2);
+  document.getElementById('total-commission').innerHTML = `${totalCom.toFixed(2)} د.ل`;
+}
+
+// عرض السلة
+async function renderCart() {
+  cartItemsBody.innerHTML = '';
+  let total = 0, totalCom = 0;
+
+  if (!cart.length) {
+    cartItemsBody.innerHTML = `<tr><td colspan="9" class="empty">السلة فارغة 🛒</td></tr>`;
+    totalPriceEl.textContent = "0.00";
+    totalCommissionEl.textContent = "0.00";
+    updateFinalTotal();
+    updateCartCount();
+    return;
+  }
+
+  // Removed fetch loop from here; moved to DOMContentLoaded
+
+
+  cart.forEach((raw, i) => {
+      const item = normalizeItem(raw);
+      total += item.price * item.quantity;
+      totalCom += item.commission * item.quantity;
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td class="product-cell">
+          <img src="${item.image}" alt="${item.name}">
+          <div class="prod-meta"><div class="prod-title">${item.name}</div></div>
+        </td>
+        <td>${item.color}</td>
+        <td>${item.size}</td>
+        <td><input type="number" class="qty" value="${item.quantity}" min="1" data-idx="${i}"></td>
+        <td>${item.price.toFixed(2)} د.ل</td>
+        <td>
+          <input type="number" 
+                 class="commission-edit" 
+                 value="${item.commission.toFixed(2)}" 
+                 min="0" 
+                 step="0.01"
+                 onchange="updateCommission(${item.product_id}, this.value)"
+                 style="width: 80px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+          د.ل
+        </td>
+        <td>
+           <span style="color: #dc2626">${item.special_commission.toFixed(2)} د.ل</span>
+        </td>
+        <td>${((item.price + item.commission + item.special_commission) * item.quantity).toFixed(2)} د.ل</td>
+        <td><button class="remove" data-idx="${i}" title="إزالة المنتج" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; transform: scale(1); box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2); display: flex; align-items: center; gap: 6px;"><i class="fas fa-trash" style="font-size: 16px;"></i> إزالة</button></td>
+      `;
+      cartItemsBody.appendChild(row);
+    });
+
+  // الإجمالي الكلي = السعر + العمولة
+  const totalWithCommission = total + totalCom;
+  totalPriceEl.textContent = totalWithCommission.toFixed(2);
+  totalCommissionEl.textContent = totalCom.toFixed(2);
+  updateFinalTotal();
+  updateCartCount();
+}
+renderCart();
+
+// تعديل الكمية
+document.addEventListener('input', e => {
+  if (e.target.classList.contains('qty')) {
+    const idx = +e.target.dataset.idx;
+    const newQty = +e.target.value;
+    const item = normalizeItem(cart[idx]);
+    const maxStock = parseInt(cart[idx].maxStock) || 0;
+    
+    if (newQty > maxStock && maxStock > 0) {
+      showWarning(`الكمية المطلوبة تتجاوز المخزون المتاح (${maxStock})`);
+      e.target.value = maxStock;
+      cart[idx].quantity = maxStock;
+    } else {
+      cart[idx].quantity = Math.max(1, newQty);
+    }
+    
+    localStorage.setItem('cart', JSON.stringify(cart));
+    renderCart();
+    updateCartCount();
+    
+    // تحديث الملخص تلقائياً إذا كان مفتوحاً
+    const summarySection = document.getElementById('order-summary-section');
+    if (summarySection && summarySection.style.display !== 'none') {
+      showOrderSummary();
+    }
+  }
+});
+
+// حذف منتج
+document.addEventListener('click', e => {
+  const rm = e.target.closest('.remove');
+  if (rm) {
+    const idx = +rm.dataset.idx;
+    cart.splice(idx, 1);
+    localStorage.setItem('cart', JSON.stringify(cart));
+    renderCart();
+    updateCartCount();
+  }
+});
+
+// مسح السلة
+if (clearCartBtn) {
+  clearCartBtn.addEventListener('click', () => {
+    if (!cart || cart.length === 0) {
+      return showInfo('السلة فارغة بالفعل 🛒');
+    }
+    
+    if (typeof showConfirm === 'function') {
+      showConfirm('هل أنت متأكد من مسح السلة بالكامل؟', () => {
+        cart = [];
+        localStorage.removeItem('cart');
+        renderCart();
+        updateCartCount();
+        showSuccess('تم مسح السلة بنجاح ✅');
+      });
+    } else {
+      // Fallback if showConfirm is not loaded
+      if (confirm('هل أنت متأكد من مسح السلة بالكامل؟')) {
+        cart = [];
+        localStorage.removeItem('cart');
+        renderCart();
+        updateCartCount();
+      }
+    }
+  });
+}
+
+// إضافة مستمعات الأحداث لحقول البيانات الشخصية
+['input', 'change', 'blur'].forEach(evt => {
+  custName.addEventListener(evt, updateSummaryValidation);
+  custPhone.addEventListener(evt, updateSummaryValidation);
+  custRegion.addEventListener(evt, updateSummaryValidation);
+  custAddress.addEventListener(evt, updateSummaryValidation);
+});
+
+// تحميل مكتبة Font Awesome للأيقونات
+document.addEventListener('DOMContentLoaded', function() {
+  if (!document.querySelector('link[href*="font-awesome"]') && !document.querySelector('link[href*="fontawesome"]')) {
+    const faLink = document.createElement('link');
+    faLink.rel = 'stylesheet';
+    faLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
+    document.head.appendChild(faLink);
+  }
+});
+
+</script>
+
+<script src="add_commission_function.js"></script>
+
+</body>
+</html>

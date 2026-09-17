@@ -1,0 +1,12 @@
+# TEMPORARY: Allow copy/paste and F12 for debugging
+# منع الوصول المباشر للملفات - فقط عبر PHP
+Options -Indexes
+
+# منع عرض قائمة الملفات
+IndexIgnore *
+
+# TEMPORARILY ALLOW ALL FILES FOR DEBUGGING
+# <FilesMatch ".*">
+#     Order deny,allow
+#     Deny from all
+# </FilesMatch>

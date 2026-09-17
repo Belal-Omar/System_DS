@@ -1,0 +1,16 @@
+?<?php
+// admin_your_rank_super.php
+if (!isset($_SESSION['admin_role']) || !in_array($_SESSION['admin_role'], ['super_admin', 'admin'])) {
+    return;
+}
+
+if (!function_exists('format_speed')) {
+    function format_speed($hours) {
+        if ($hours < 24) return $hours . ' ساعة';
+        $days = floor($hours / 24);
+        $rem_hours = $hours % 24;
+        return $days . ' يوم' . ($rem_hours > 0 ? ' و ' . $rem_hours . ' ساعة' : '');
+    }
+}
+
+// 1. شركات الشحن

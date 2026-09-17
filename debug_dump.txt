@@ -1,0 +1,52 @@
+--- Product: كريم شعر (Full Data) ---
+id: 4
+name: كريم شعر
+description: كريم شعر ينعم و يغذي فروة الرأس
+price: 65.00
+commission: 10.00
+shipping_prices: [{"city_id":19,"price":60},{"city_id":15,"price":50},{"city_id":18,"price":55},{"city_id":3,"price":35},{"city_id":4,"price":40},{"city_id":20,"price":65},{"city_id":14,"price":40},{"city_id":2,"price":25},{"city_id":8,"price":40},{"city_id":5,"price":40},{"city_id":9,"price":40},{"city_id":12,"price":35},{"city_id":25,"price":40},{"city_id":1,"price":25},{"city_id":10,"price":30},{"city_id":11,"price":35},{"city_id":27,"price":45},{"city_id":21,"price":70},{"city_id":26,"price":40},{"city_id":6,"price":45},{"city_id":24,"price":75},{"city_id":7,"price":45},{"city_id":16,"price":50},{"city_id":23,"price":70},{"city_id":17,"price":55},{"city_id":13,"price":40},{"city_id":22,"price":65}]
+has_custom_shipping: 1
+shipping_fee: 30.00
+category: مستحضرات تجميل
+image: 
+stock: 6
+shipping_company: Digital
+created_at: 2025-11-17 02:44:31
+user_id: 10
+status: active
+shipping_cost: 0.00
+-------------------
+
+--- Orders Table Columns ---
+id (int)
+user_id (int)
+customer_name (varchar(255))
+customer_phone (varchar(20))
+region (varchar(100))
+address (text)
+shipping_city (varchar(100))
+shipping_cost (decimal(10,2))
+merchant_net_price (decimal(10,2))
+total (decimal(10,2))
+commission_total (decimal(10,2))
+shipping_fee (decimal(10,2))
+status (enum('قيد الانتظار','تم التأكيد','قيد التنفيذ','في الشحن','تم التوصيل','مرتجع','ملغي','محصل','تحت التحضير','مرفوض'))
+created_at (timestamp)
+shipping_city_id (int)
+shipping_city_name (varchar(255))
+cancellation_reason (text)
+return_reason (text)
+reason_type (enum('cancellation','return'))
+
+--- Order Items Table Columns ---
+id (int)
+order_id (int)
+product_id (int)
+quantity (int)
+price (decimal(10,2))
+original_price (decimal(10,2))
+commission (decimal(10,2))
+shipping_cost (decimal(10,2))
+color (varchar(50))
+size (varchar(20))
+is_shipping_included (tinyint(1))

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة الادمن - الطلبات</title>
+    <link rel="icon" type="image/png" href="brand_logo.php?f=logo">
+    <link rel="shortcut icon" type="image/png" href="brand_logo.php?f=favicon">
+    <link rel="apple-touch-icon" href="brand_logo.php?f=logo">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="notifications.js?v=2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+
+<body class="bg-gray-100 font-sans p-6">
+
+  <h1 class="text-3xl font-bold mb-6 text-purple-700">📦 لوحة الإدارة - رفع الطلبات</h1>
+
+  <!-- رفع ملف + حذف -->
+  <div class="flex items-center gap-4 mb-6">
+    <input type="file" id="excelFile" accept=".xlsx,.xls" class="border p-2 rounded bg-white">
+    <button id="uploadBtn" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+      رفع البيانات
+    </button>
+    <button id="deleteBtn" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+      حذف كل البيانات
+    </button>
+  </div>
+
+  <!-- أرباح -->
+  <div class="bg-white shadow p-5 rounded-lg mb-6">
+     <h2 class="text-xl font-bold mb-2">💰 إجمالي الأرباح (الحالات = محصل)</h2>
+     <p id="earningsBox" class="text-3xl text-green-600 font-bold">0</p>
+  </div>
+
+  <!-- جدول الطلبات -->
+  <div class="overflow-x-auto">
+    <table class="min-w-full bg-white rounded shadow overflow-hidden" id="ordersTable">
+      <thead class="bg-purple-600 text-white">
+        <tr>
+          <th class="py-2 px-4">رقم الطلب</th>
+          <th class="py-2 px-4">اسم العميل</th>
+          <th class="py-2 px-4">المدينة</th>
+          <th class="py-2 px-4">المنتجات</th>
+          <th class="py-2 px-4">المبلغ الإجمالي</th>
+          <th class="py-2 px-4">الحالة</th>
+          <th class="py-2 px-4">تاريخ الإنشاء</th>
+        </tr>
+      </thead>
+      <tbody class="text-center" id="tableBody">
+        <!-- البيانات تظهر هنا -->
+      </tbody>
+    </table>
+  </div>
+
+<script>
+
+const tableBody = document.getElementById('tableBody');
+const earningsBox = document.getElementById('earningsBox');
+
+// تحميل البيانات عند فتح الصفحة
+loadOrders();
+
+// رفع ملف Excel
+document.getElementById('uploadBtn').addEventListener('click', () => {
+  const file = document.getElementById('excelFile').files[0];
+  if(!file) return showWarning("اختر ملف Excel!");
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const workbook = XLSX.read(e.target.result, { type: 'binary' });
+    const sheet = workbook.SheetNames[0];
+    const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheet]);
+
+    localStorage.setItem('orders', JSON.stringify(data));
+    showSuccess("تم رفع البيانات بنجاح ✅");
+    loadOrders();
+  };
+  reader.readAsBinaryString(file);
+});
+
+// حذف البيانات
+document.getElementById('deleteBtn').addEventListener('click', () => {
+  if(confirm("هل تريد حذف كل الطلبات؟")) {
+    localStorage.removeItem('orders');
+    loadOrders();
+  }
+});
+
+// تحميل البيانات وعرضها + حساب الأرباح
+function loadOrders(){
+  tableBody.innerHTML = "";
+  const orders = JSON.parse(localStorage.getItem('orders')) || [];
+
+  let total = 0;
+
+  if(orders.length === 0){
+    tableBody.innerHTML = `<tr><td colspan="7" class="py-4">لا توجد بيانات حالياً</td></tr>`;
+    earningsBox.textContent = "0";
+    return;
+  }
+
+  orders.forEach(order => {
+
+    // جمع الأرباح لو الحالة "محصل"
+    if(order["الحالة"] === "محصل"){
+      total += Number(order["المبلغ الإجمالي"] || 0);
+    }
+
+    const tr = document.createElement('tr');
+    tr.classList.add("border-b");
+
+    tr.innerHTML = `
+      <td class="py-2 px-4">${order["رقم الطلب"] || ""}</td>
+      <td class="py-2 px-4">${order["اسم العميل"] || ""}</td>
+      <td class="py-2 px-4">${order["المدينة"] || ""}</td>
+      <td class="py-2 px-4">${order["المنتجات"] || ""}</td>
+      <td class="py-2 px-4">${order["المبلغ الإجمالي"] || ""}</td>
+      <td class="py-2 px-4">${order["الحالة"] || ""}</td>
+      <td class="py-2 px-4">${order["تاريخ الإنشاء"] || ""}</td>
+    `;
+
+    tableBody.appendChild(tr);
+  });
+
+  earningsBox.textContent = total + " د.ل";
+}
+
+</script>
+
+</body>
+</html>

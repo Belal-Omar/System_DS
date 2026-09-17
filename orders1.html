@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة التاجر - الطلبات</title>
+    <link rel="icon" type="image/png" href="brand_logo.php?f=logo">
+    <link rel="shortcut icon" type="image/png" href="brand_logo.php?f=favicon">
+    <link rel="apple-touch-icon" href="brand_logo.php?f=logo">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 font-sans p-4">
+
+  <h1 class="text-2xl font-bold mb-4">جدول الطلبات</h1>
+
+  <!-- 💰 صندوق الأرباح -->
+  <div class="bg-white p-4 rounded shadow mb-6">
+    <h2 class="text-xl font-bold mb-2 text-green-700">💰 أرباحك الحالية</h2>
+    <p id="profitBox" class="text-3xl font-bold text-green-600">0</p>
+  </div>
+
+  <!-- جدول الطلبات -->
+  <div class="overflow-x-auto">
+    <table class="min-w-full bg-white rounded shadow overflow-hidden" id="ordersTable">
+      <thead class="bg-purple-600 text-white">
+        <tr>
+          <th class="py-2 px-4">رقم الطلب</th>
+          <th class="py-2 px-4">اسم العميل</th>
+          <th class="py-2 px-4">المدينة</th>
+          <th class="py-2 px-4">المنتجات</th>
+          <th class="py-2 px-4">المبلغ الإجمالي</th>
+          <th class="py-2 px-4">الحالة</th>
+          <th class="py-2 px-4">تاريخ الإنشاء</th>
+        </tr>
+      </thead>
+      <tbody class="text-center" id="tableBody"></tbody>
+    </table>
+  </div>
+
+<script>
+
+const tableBody = document.getElementById('tableBody');
+const profitBox = document.getElementById('profitBox');
+
+// تحميل الطلبات
+const orders = JSON.parse(localStorage.getItem('orders')) || [];
+
+// تحميل المسحوبات
+const withdrawals = Number(localStorage.getItem('withdrawals')) || 0;
+
+// حساب الأرباح
+let totalProfit = 0;
+
+if (orders.length === 0) {
+  tableBody.innerHTML = `<tr><td colspan="7" class="py-4">لا توجد بيانات حالياً</td></tr>`;
+} else {
+  orders.forEach(order => {
+
+    // جمع المحصل فقط
+    if (order["الحالة"] === "محصل") {
+      totalProfit += Number(order["المبلغ الإجمالي"] || 0);
+    }
+
+    const tr = document.createElement('tr');
+    tr.classList.add('border-b');
+    tr.innerHTML = `
+      <td class="py-2 px-4">${order["رقم الطلب"] || ''}</td>
+      <td class="py-2 px-4">${order["اسم العميل"] || ''}</td>
+      <td class="py-2 px-4">${order["المدينة"] || ''}</td>
+      <td class="py-2 px-4">${order["المنتجات"] || ''}</td>
+      <td class="py-2 px-4">${order["المبلغ الإجمالي"] || ''}</td>
+      <td class="py-2 px-4">${order["الحالة"] || ''}</td>
+      <td class="py-2 px-4">${order["تاريخ الإنشاء"] || ''}</td>
+    `;
+    tableBody.appendChild(tr);
+  });
+}
+
+// حساب الربح النهائي
+const finalProfit = totalProfit - withdrawals;
+
+// حفظ الأرباح في LocalStorage
+localStorage.setItem("totalProfit", totalProfit);
+localStorage.setItem("finalProfit", finalProfit);
+
+// تحديث صندوق الأرباح
+profitBox.textContent = finalProfit + " دل";
+
+</script>
+
+</body>
+</html>

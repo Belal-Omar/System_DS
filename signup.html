@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إنشاء حساب جديد</title>
+    <?php include __DIR__ . '/favicon_tags.php'; ?>
+  <link rel="stylesheet" href="Style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+  <div class="center-box">
+    <div class="title-icon">
+      <i class="fa-solid fa-user-plus"></i>
+      <h1>إنشاء حساب جديد</h1>
+    </div>
+
+    <form action="login.php" method="POST">
+      <label>الاسم بالكامل</label>
+      <input type="text" name="fullname" placeholder="اكتب اسمك الكامل" required>
+
+      <label>البريد الإلكتروني</label>
+      <input type="email" name="email" placeholder="example@email.com" required>
+
+      <label>رقم الهاتف</label>
+      <input type="tel" name="phone" placeholder="مثال: 01012345678" required>
+      <small class="note">⚠️ يجب أن يكون الرقم مرتبط بحساب واتساب</small>
+
+      <!-- ✅ القائمة المنسدلة -->
+      <label>نوع الحساب</label>
+      <select name="user_type" required>
+        <option value="" disabled selected>اختر نوع الحساب</option>
+        <option value="تاجر">تاجر</option>
+        <option value="مسوق">مسوق</option>
+      </select>
+
+      <label>كلمة المرور</label>
+      <input type="password" name="password" placeholder="••••••••" required>
+
+      <button type="submit">إنشاء الحساب</button>
+
+      <p class="create">لديك حساب بالفعل؟ <a href="login.html">تسجيل الدخول</a></p>
+    </form>
+  </div>
+</body>
+</html>

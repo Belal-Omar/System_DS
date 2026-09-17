@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>تفاصيل المنتج | جاكت Adidas</title>
+    <link rel="icon" type="image/png" href="brand_logo.php?f=logo">
+    <link rel="shortcut icon" type="image/png" href="brand_logo.php?f=favicon">
+    <link rel="apple-touch-icon" href="brand_logo.php?f=logo">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="notifications.js?v=2"></script>
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="Stylepp.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+
+<body>
+
+  <!-- Navbar -->
+  <nav id="navbar">
+    <div class="nav-links">
+      <a href="Home1.html" class="logo-text">لوحة المسوق</a>
+      <a href="Home1.html">الرئيسية</a>
+      <a href="product.html" style="color:#4b6b2f;">المنتجات</a>
+      <a href="orders.html">الطلبات</a>
+      <a href="#">السحب</a>
+    </div>
+
+    <div class="cart-icon">
+      <a href="cart.html" title="سلة المشتريات">
+        <i class="fas fa-shopping-cart"></i>
+        <span class="cart-count">0</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- Product Details -->
+  <section class="product-details">
+    <div class="container">
+
+      <!-- يسار: التفاصيل -->
+      <div class="details">
+        <h2>جاكت Adidas</h2>
+        <p class="price">د.ل <strong id="price-text">90.00</strong></p>
+        <p class="commission">العمولة: د.ل <strong id="commission-text">10.00</strong></p>
+
+        <div class="options">
+          <label>اختر اللون:</label>
+          <div class="colors">
+            <button class="color-btn">زيتي</button>
+            <button class="color-btn">أزرق</button>
+          </div>
+
+          <label>اختر المقاس:</label>
+          <div class="sizes">
+            <button class="size-btn">L</button>
+            <button class="size-btn">XL</button>
+            <button class="size-btn">2XL</button>
+            <button class="size-btn">3XL</button>
+          </div>
+        </div>
+
+        <div class="buttons">
+          <button class="add-cart"><i class='bx bx-cart'></i> إضافة إلى السلة</button>
+          <button class="buy-now"><i class='bx bx-bolt'></i> اطلب الآن</button>
+        </div>
+
+        <button class="stock-btn"><i class='bx bx-home-smile'></i> عرض تفاصيل المخزون</button>
+      </div>
+
+      <!-- يمين: الصور -->
+      <div class="images">
+        <div class="image-box">
+          <img src="imgs/68e0357a3c92b.webp" alt="جاكت Adidas" class="main-img" id="mainImage">
+        </div>
+
+        <div class="thumbnails">
+          <img src="imgs/68e0357a3c92b.webp" alt="thumb1" class="thumb-img active">
+          <img src="imgs/68e0357a3cbd4.webp" alt="thumb2" class="thumb-img active">
+        </div>
+      </div>
+    </div>
+
+    <!-- وصف المنتج -->
+    <div class="description">
+      <div class="desc-box">
+        <h3>وصف المنتج</h3>
+        <p>
+          جاكت رجالي  
+          الخامة وترتوڤ مبطن فرو داخلي  
+          المقاسات كبيرة من أول L حتى 3XL  
+          <br><br>
+          <strong>جدول المقاسات:</strong><br>
+          L من 50 إلى 65 كيلو<br>
+          XL من 65 إلى 75 كيلو<br>
+          2XL من 75 إلى 90 كيلو<br>
+          3XL من 90 إلى 105 كيلو
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- نافذة عرض المخزون -->
+  <div class="stock-modal" id="stockModal">
+    <div class="stock-content">
+      <span class="close-btn" id="closeStock">&times;</span>
+      <h2>تفاصيل المخزون لـ جاكت Adidas</h2>
+      <p class="total">إجمالي القطع في المخزون: <strong>177 قطعة</strong></p>
+
+      <table class="stock-table">
+        <thead>
+          <tr>
+            <th>اللون</th>
+            <th>المقاس</th>
+            <th>الكمية المتاحة</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>زيتي</td><td>L</td><td>21</td></tr>
+          <tr><td>زيتي</td><td>XL</td><td>33</td></tr>
+          <tr><td>زيتي</td><td>2XL</td><td>31</td></tr>
+          <tr><td>زيتي</td><td>3XL</td><td>43</td></tr>
+          <tr><td>أزرق</td><td>L</td><td>6</td></tr>
+          <tr><td>أزرق</td><td>XL</td><td>0</td></tr>
+          <tr><td>أزرق</td><td>2XL</td><td>13</td></tr>
+          <tr><td>أزرق</td><td>3XL</td><td>30</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="social-links">
+      <a href="#"><i class='bx bxl-facebook-circle'></i></a>
+      <a href="#"><i class='bx bxl-instagram'></i></a>
+      <a href="#"><i class='bx bxl-tiktok'></i></a>
+      <a href="#"><i class='bx bxl-telegram'></i></a>
+    </div>
+    <p>© 2025 Techora - جميع الحقوق محفوظة</p>
+  </footer>
+
+  <script>
+    const colorBtns = document.querySelectorAll('.color-btn');
+    const sizeBtns = document.querySelectorAll('.size-btn');
+    const addCart = document.querySelector('.add-cart');
+    const buyNow = document.querySelector('.buy-now');
+    const stockBtn = document.querySelector('.stock-btn');
+    const stockModal = document.getElementById('stockModal');
+    const closeStock = document.getElementById('closeStock');
+    const cartCountEl = document.querySelector('.cart-count');
+    const mainImage = document.getElementById('mainImage'); // ✅ الصورة الرئيسية
+    const thumbImgs = document.querySelectorAll('.thumb-img'); // ✅ الصور الصغيرة
+
+    let selectedColor = null;
+    let selectedSize = null;
+
+    // تحديث عداد السلة
+    function updateCartCount() {
+      const cart = JSON.parse(localStorage.getItem("cart")) || [];
+      cartCountEl.textContent = cart.length;
+    }
+    updateCartCount();
+
+    // اختيار اللون
+    colorBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        colorBtns.forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedColor = btn.textContent.trim();
+        enableButtons();
+      });
+    });
+
+    // اختيار المقاس
+    sizeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        sizeBtns.forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedSize = btn.textContent.trim();
+        enableButtons();
+      });
+    });
+
+    // ✅ تبديل الصورة عند الضغط على thumbnail
+    thumbImgs.forEach(img => {
+      img.addEventListener('click', () => {
+        // إزالة تمييز الصورة السابقة
+        thumbImgs.forEach(i => i.classList.remove('active'));
+        // تفعيل الصورة الحالية
+        img.classList.add('active');
+        // تبديل الصورة الكبيرة
+        mainImage.src = img.src;
+      });
+    });
+
+    // تفعيل الأزرار بعد الاختيار
+    function enableButtons() {
+      if (selectedColor && selectedSize) {
+        addCart.classList.add('active');
+        buyNow.classList.add('active');
+        stockBtn.classList.add('active');
+      }
+    }
+
+    // إضافة للسلة
+    addCart.addEventListener('click', () => {
+      if (!selectedColor || !selectedSize) return showWarning("اختر اللون والمقاس أولاً");
+
+      const cart = JSON.parse(localStorage.getItem("cart")) || [];
+      const newItem = {
+        name: "جاكت Adidas",
+        color: selectedColor,
+        size: selectedSize,
+        price: 90,
+        commission: 10,
+        image: mainImage.src, // ✅ الصورة الحالية اللي المستخدم شايفها
+        quantity: 1
+      };
+      cart.push(newItem);
+      localStorage.setItem("cart", JSON.stringify(cart));
+      updateCartCount();
+      showSuccess(`تمت إضافة (${selectedColor} - ${selectedSize}) إلى السلة ✅`);
+    });
+
+    // طلب الآن
+    buyNow.addEventListener('click', () => {
+      if (!selectedColor || !selectedSize) return showWarning("اختر اللون والمقاس أولاً");
+      addCart.click(); 
+      setTimeout(() => {
+        window.location.href = "cart.html";
+      }, 1500);
+    });
+
+    // عرض المخزون
+    stockBtn.addEventListener('click', () => {
+      stockModal.style.display = 'flex';
+    });
+
+    // غلق نافذة المخزون
+    closeStock.addEventListener('click', () => {
+      stockModal.style.display = 'none';
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance Admin</title>
+    <link rel="icon" type="image/png" href="brand_logo.php?f=logo">
+    <link rel="shortcut icon" type="image/png" href="brand_logo.php?f=favicon">
+    <link rel="apple-touch-icon" href="brand_logo.php?f=logo">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6 font-sans">
+
+  <h1 class="text-2xl font-bold mb-4">لوحة إدارة المصاريف</h1>
+
+  <form id="financeForm" class="bg-white p-4 rounded shadow mb-6">
+    <div class="grid grid-cols-2 gap-4">
+      <input type="number" name="cost" placeholder="التكلفة" class="border p-2 rounded" required>
+      <input type="number" name="shipping" placeholder="الشحن" class="border p-2 rounded" required>
+      <input type="number" name="commission" placeholder="العمولة" class="border p-2 rounded" required>
+      <input type="number" name="packaging" placeholder="التغليف" class="border p-2 rounded" required>
+      <input type="number" name="damaged" placeholder="التالف" class="border p-2 rounded" required>
+      <input type="number" name="ads" placeholder="الإعلانات" class="border p-2 rounded" required>
+    </div>
+    <button type="submit" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">إضافة</button>
+  </form>
+
+  <div class="overflow-x-auto">
+    <table class="min-w-full bg-white rounded shadow" id="financeTable">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="py-2 px-4 border">التكلفة</th>
+          <th class="py-2 px-4 border">الشحن</th>
+          <th class="py-2 px-4 border">العمولة</th>
+          <th class="py-2 px-4 border">التغليف</th>
+          <th class="py-2 px-4 border">التالف</th>
+          <th class="py-2 px-4 border">الإعلانات</th>
+          <th class="py-2 px-4 border">إجراء</th>
+        </tr>
+      </thead>
+      <tbody>
+      </tbody>
+    </table>
+  </div>
+
+<script>
+const form = document.getElementById('financeForm');
+const tableBody = document.querySelector('#financeTable tbody');
+
+// جلب البيانات من LocalStorage عند التحميل
+let financeData = JSON.parse(localStorage.getItem('financeData')) || [];
+financeData.forEach(item => addRow(item));
+
+// إضافة صف جديد
+form.addEventListener('submit', function(e){
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(form));
+  
+  financeData.push(data);
+  localStorage.setItem('financeData', JSON.stringify(financeData));
+
+  addRow(data);
+  form.reset();
+});
+
+function addRow(data){
+  const row = document.createElement('tr');
+  row.innerHTML = `
+    <td class="border px-4 py-2">${data.cost}</td>
+    <td class="border px-4 py-2">${data.shipping}</td>
+    <td class="border px-4 py-2">${data.commission}</td>
+    <td class="border px-4 py-2">${data.packaging}</td>
+    <td class="border px-4 py-2">${data.damaged}</td>
+    <td class="border px-4 py-2">${data.ads}</td>
+    <td class="border px-4 py-2 text-center">
+      <button class="bg-red-500 text-white px-2 py-1 rounded deleteBtn">حذف</button>
+    </td>
+  `;
+  tableBody.appendChild(row);
+}
+
+// حذف صف
+tableBody.addEventListener('click', function(e){
+  if(e.target.classList.contains('deleteBtn')){
+    const index = Array.from(tableBody.children).indexOf(e.target.closest('tr'));
+    financeData.splice(index, 1);
+    localStorage.setItem('financeData', JSON.stringify(financeData));
+    e.target.closest('tr').remove();
+  }
+});
+</script>
+
+</body>
+</html>

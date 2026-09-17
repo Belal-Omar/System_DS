@@ -1,0 +1,834 @@
+<?php
+// ملف: Home1.html - تحويله إلى PHP لاستخدام navbar
+session_start();
+include("config.php");
+
+// التحقق من تسجيل الدخول ونوع المستخدم
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.html");
+    exit;
+}
+
+$user_id = $_SESSION['user_id'] ?? null;
+$user = null;
+$user_query = null;
+
+if ($user_id && isset($conn)) {
+    $user_id = (int)$user_id;
+    $user_query = $conn->query("SELECT * FROM users WHERE id = $user_id");
+    if ($user_query) {
+        $user = $user_query->fetch_assoc();
+    }
+}
+
+// منع التاجر من دخول صفحات المسوق
+if ($user && ($user['user_type'] ?? '') == 'تاجر') {
+    header("Location: home111.php");
+    exit;
+}
+
+// جلب بيانات المستخدم للـ navbar
+$user_name = '';
+if ($user_id && $user) {
+    $user_name = $user['fullname'] ?? '';
+}
+
+// الحصول على الصفحة الحالية
+$current_page = basename($_SERVER['PHP_SELF'] ?? $_SERVER['SCRIPT_NAME'] ?? 'index.php');
+$current_page = str_replace(['.php', '.html'], '', $current_page);
+?>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>لوحة المسوق</title>
+    <?php include __DIR__ . '/favicon_tags.php'; ?>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="styleH.css" />
+  <style>
+    body {
+      padding-top: 100px;
+    }
+    
+    /* حركات Scroll-triggered */
+    .animate-on-scroll {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.8s ease, transform 0.8s ease;
+    }
+    
+    .animate-on-scroll.animated {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    /* إزالة الحركات التلقائية من الكروت */
+    .card {
+      animation: none !important;
+      opacity: 0;
+      transform: scale(0.9);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    
+    .card.animated {
+      opacity: 1;
+      transform: scale(1);
+    }
+    
+    .card:nth-child(1) { transition-delay: 0.1s; }
+    .card:nth-child(2) { transition-delay: 0.2s; }
+    .card:nth-child(3) { transition-delay: 0.3s; }
+    .card:nth-child(4) { transition-delay: 0.4s; }
+    .card:nth-child(5) { transition-delay: 0.5s; }
+    .card:nth-child(6) { transition-delay: 0.6s; }
+    
+    /* إزالة الحركات التلقائية من الرسوم البيانية */
+    .chart-box {
+      animation: none !important;
+      opacity: 0;
+      transform: translateY(40px);
+      transition: opacity 1s ease, transform 1s ease;
+    }
+    
+    .chart-box.animated {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .chart-box:nth-child(1) { transition-delay: 0.2s; }
+    .chart-box:nth-child(2) { transition-delay: 0.4s; }
+
+    /* Navbar Styles */
+    .main-navbar {
+      position: fixed;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 72rem;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+      border-radius: 1rem;
+      z-index: 1000;
+      padding: 0.8rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .main-navbar.hidden {
+      transform: translateX(-50%) translateY(-150%);
+      opacity: 0;
+    }
+    .navbar-logo {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #4b6b2f;
+      letter-spacing: 1px;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .navbar-logo i {
+      font-size: 1.5rem;
+    }
+    .navbar-logo:hover {
+      color: #3a5524;
+      transform: scale(1.03);
+    }
+    .navbar-links {
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+    }
+    .navbar-link {
+      font-weight: 600;
+      color: #1e293b;
+      text-decoration: none;
+      font-size: 1.1rem;
+      transition: all 0.3s ease;
+      position: relative;
+      padding: 0.5rem 0;
+    }
+    .navbar-link.active {
+      color: #4b6b2f;
+      font-weight: 700;
+    }
+    .navbar-link.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background-color: #4b6b2f;
+      border-radius: 3px;
+      animation: slideIn 0.3s ease;
+    }
+    .navbar-link:hover {
+      color: #4b6b2f;
+      transform: translateY(-2px);
+    }
+    .navbar-link:hover::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background-color: #4b6b2f;
+      border-radius: 3px;
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+      from { width: 0; opacity: 0; }
+      to { width: 100%; opacity: 1; }
+    }
+    .navbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+    }
+    .navbar-cart {
+      position: relative;
+      color: #4b6b2f;
+      font-size: 1.5rem;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+    }
+    .navbar-cart:hover {
+      background-color: rgba(75, 107, 47, 0.1);
+      transform: translateY(-2px);
+    }
+    .navbar-cart .cart-count {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      background: #ef4444;
+      color: white;
+      font-size: 0.7rem;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      border: 2px solid white;
+    }
+    .navbar-btn {
+      padding: 0.6rem 1.4rem;
+      border-radius: 0.6rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      font-size: 1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .navbar-btn i {
+      font-size: 1.1rem;
+    }
+    .navbar-btn-login {
+      color: #4b6b2f;
+      border: 2px solid #4b6b2f;
+    }
+    .navbar-btn-login:hover {
+      background-color: rgba(75, 107, 47, 0.1);
+      transform: translateY(-2px);
+    }
+    .navbar-btn-register {
+      background-color: #4b6b2f;
+      color: white;
+    }
+    .navbar-btn-register:hover {
+      background-color: #3a5524;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(75, 107, 47, 0.2);
+    }
+    .navbar-btn-logout {
+      background-color: #ef4444;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .navbar-btn-logout:hover {
+      background-color: #dc2626;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    }
+    .navbar-user {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      color: #4b6b2f;
+      text-decoration: none;
+      font-weight: 600;
+      padding: 0.5rem 1rem;
+      border-radius: 0.6rem;
+      transition: all 0.3s ease;
+    }
+    .navbar-user:hover {
+      background-color: rgba(75, 107, 47, 0.1);
+      transform: translateY(-2px);
+    }
+    .navbar-user i {
+      font-size: 1.4rem;
+    }
+    .hidden {
+      transform: translate(-50%, -150%) !important;
+      opacity: 0;
+      pointer-events: none;
+    }
+    @media (max-width: 1024px) {
+      .main-navbar {
+        padding: 0.8rem 1.5rem;
+      }
+      .navbar-logo {
+        font-size: 1.6rem;
+      }
+      .navbar-links {
+        gap: 1.2rem;
+      }
+      .navbar-link {
+        font-size: 1rem;
+      }
+      .navbar-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Navbar -->
+  <nav class="main-navbar" id="mainNavbar">
+    <div style="display: flex; align-items: center; gap: 2.5rem;">
+      <a href="Home1.html" class="navbar-logo">
+        <img src="brand_logo.php?f=logo" alt="Miskova Global" style="height: 42px; width: auto; object-fit: contain; border-radius: 6px;">
+        <span>لوحة المسوق</span>
+      </a>
+      <div class="navbar-links">
+        <a href="Home1.html" class="navbar-link <?php echo ($current_page == 'Home1' || $current_page == 'home') ? 'active' : ''; ?>">
+          <i class='bx bx-home-alt'></i>
+          الرئيسية
+        </a>
+        <a href="product.html" class="navbar-link <?php echo ($current_page == 'product') ? 'active' : ''; ?>">
+          <i class='bx bx-package'></i>
+          المنتجات
+        </a>
+        <a href="orders.html" class="navbar-link <?php echo ($current_page == 'orders') ? 'active' : ''; ?>">
+          <i class='bx bx-receipt'></i>
+          الطلبات
+        </a>
+        <a href="withdrawals.php" class="navbar-link <?php echo ($current_page == 'withdrawals') ? 'active' : ''; ?>">
+          <i class='bx bx-money-withdraw'></i>
+          السحب
+        </a>
+        <a href="shipping_cities_statistics.html" class="navbar-link <?php echo ($current_page == 'shipping_cities_statistics') ? 'active' : ''; ?>">
+          <i class='bx bx-map-pin'></i>
+          إحصائيات المدن
+        </a>
+        <a href="product_stats.php" class="navbar-link <?php echo ($current_page == 'product_stats') ? 'active' : ''; ?>">
+          <i class='bx bx-stats'></i>
+          إحصائيات المنتجات
+        </a>
+      </div>
+    </div>
+    <div class="navbar-actions">
+      <a href="cart.html" class="navbar-cart" title="سلة المشتريات">
+        <i class='bx bx-cart'></i>
+        <span class="cart-count">0</span>
+      </a>
+      <?php if ($user_id && $user): ?>
+        <a href="profile_marketer.php" class="navbar-user">
+          <i class='bx bx-user-circle'></i>
+          <span class="hidden md:inline"><?php echo htmlspecialchars($user_name); ?></span>
+        </a>
+        <a href="logout.php" class="navbar-btn navbar-btn-logout">
+          <i class='bx bx-log-out'></i>
+          <span>تسجيل الخروج</span>
+        </a>
+      <?php else: ?>
+        <a href="login.html" class="navbar-btn navbar-btn-login">
+          <i class='bx bx-log-in-circle'></i>
+          <span>تسجيل الدخول</span>
+        </a>
+        <a href="register.html" class="navbar-btn navbar-btn-register">
+          <i class='bx bx-user-plus'></i>
+          <span>إنشاء حساب</span>
+        </a>
+      <?php endif; ?>
+    </div>
+  </nav>
+
+  <script>
+    // Navbar scroll behavior
+    let lastScroll = 0;
+    const navbar = document.getElementById('mainNavbar');
+    let isScrolling = false;
+    
+    function handleScroll() {
+      if (isScrolling) return;
+      
+      isScrolling = true;
+      
+      requestAnimationFrame(() => {
+        const currentScroll = window.pageYOffset;
+        
+        if (currentScroll <= 0) {
+          navbar.classList.remove('hidden');
+          navbar.style.transform = 'translateX(-50%)';
+          isScrolling = false;
+          return;
+        }
+        
+        if (currentScroll > lastScroll && currentScroll > 100) {
+          // Scrolling down
+          navbar.classList.add('hidden');
+        } else {
+          // Scrolling up
+          navbar.classList.remove('hidden');
+          navbar.style.transform = 'translateX(-50%)';
+        }
+        
+        lastScroll = currentScroll;
+        isScrolling = false;
+      });
+    }
+    
+    // Throttle scroll events for better performance
+    let scrollTimeout;
+    window.addEventListener('scroll', () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(handleScroll, 50);
+    }, { passive: true });
+    
+    // Cart count functionality
+    function updateCartCount() {
+      try {
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const cartCountEls = document.querySelectorAll('.cart-count');
+        const totalItems = cart.reduce((total, item) => total + (parseInt(item.quantity) || 0), 0);
+        
+        cartCountEls.forEach(el => {
+          el.textContent = totalItems;
+          // Add animation when cart count changes
+          if (parseInt(el.textContent) !== parseInt(el.dataset.lastCount || '0')) {
+            el.style.transform = 'scale(1.3)';
+            setTimeout(() => {
+              el.style.transform = 'scale(1)';
+            }, 200);
+          }
+          el.dataset.lastCount = totalItems;
+        });
+      } catch (e) {
+        console.error('Error updating cart count:', e);
+      }
+    }
+    
+    // Initialize cart count on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initial cart count update
+      updateCartCount();
+      
+      // Update cart count when storage changes (from other tabs/windows)
+      window.addEventListener('storage', updateCartCount);
+      
+      // Update cart count every second (to catch any changes from other tabs)
+      setInterval(updateCartCount, 1000);
+      
+      // Add click animation to cart icon
+      const cartIcon = document.querySelector('.navbar-cart');
+      if (cartIcon) {
+        cartIcon.addEventListener('click', function() {
+          this.style.transform = 'scale(0.9)';
+          setTimeout(() => {
+            this.style.transform = '';
+          }, 200);
+        });
+      }
+    });
+  </script>
+
+<!-- Dashboard -->
+<section class="dashboard animate-on-scroll">
+  <h1>لوحة التحكم</h1>
+  <div class="cards">
+
+    <div class="card">
+      <div class="icon">📦</div>
+      <h3>إجمالي الطلبات</h3>
+      <p id="total-orders">0</p>
+    </div>
+
+    <div class="card">
+      <div class="icon">🚚</div>
+      <h3>نسبة التسليم</h3>
+      <p id="delivery-rate">0%</p>
+    </div>
+
+    <div class="card">
+      <div class="icon">💰</div>
+      <h3>إجمالي الأرباح</h3>
+      <p id="total-profit">0.00 د.ل</p>
+    </div>
+
+    <div class="card">
+      <div class="icon">⏳</div>
+      <h3>أرباح قيد الانتظار</h3>
+      <p id="pending-profit">0.00 د.ل</p>
+    </div>
+
+    <div class="card">
+      <div class="icon">🏦</div>
+      <h3>تم السحب</h3>
+      <p id="withdrawn-amount">0.00 د.ل</p>
+    </div>
+
+    <div class="card">
+      <div class="icon">💳</div>
+      <h3>متاح السحب</h3>
+      <p id="available-withdrawal">0.00 د.ل</p>
+    </div>
+
+    <div class="card">
+      <div class="icon">📈</div>
+      <h3>أرباح متوقعة</h3>
+      <p id="expected-profit">0.00 د.ل</p>
+    </div>
+
+  </div>
+</section>
+
+
+  <!-- Order Status -->
+  <section class="status-section">
+    <h2>حالات الطلبات</h2>
+    <div class="status-cards">
+      <div class="status-card">
+        <h3>مغلق</h3>
+        <p id="status-closed">0</p>
+      </div>
+      <div class="status-card">
+        <h3>تم التأكيد</h3>
+        <p id="status-confirmed">0</p>
+      </div>
+      <div class="status-card">
+        <h3>قيد الانتظار</h3>
+        <p id="status-pending">0</p>
+      </div>
+      <div class="status-card">
+        <h3>في الشحن</h3>
+        <p id="status-shipping">0</p>
+      </div>
+      <div class="status-card">
+        <h3>تم التوصيل</h3>
+        <p id="status-delivered">0</p>
+      </div>
+      <div class="status-card">
+        <h3>مرتجع</h3>
+        <p id="status-returned">0</p>
+      </div>
+      <div class="status-card">
+        <h3>ملغي</h3>
+        <p id="status-cancelled">0</p>
+      </div>
+      <div class="status-card">
+        <h3>محصل</h3>
+        <p id="status-collected">0</p>
+      </div>
+      <div class="status-card">
+        <h3>تحت التحضير </h3>
+        <p id="status-preparing">0</p>
+      </div>
+    </div>
+  </section>
+ <!-- Charts Section -->
+<section class="charts-section animate-on-scroll">
+  <div class="charts-container">
+    
+    <!-- Pie Chart -->
+    <div class="chart-box">
+      <h3>نسب حالات الطلبات (تم التوصيل / ملغي / مرتجع)</h3>
+      <canvas id="pieChart"></canvas>
+    </div>
+
+    <!-- Line Chart -->
+    <div class="chart-box">
+      <h3>الأرباح على مدار السنة (12 شهر)</h3>
+      <canvas id="lineChart"></canvas>
+    </div>
+
+  </div>
+</section>
+
+
+
+    <!-- FOOTER -->
+  <footer>
+  <div class="social-links">
+    <a href="https://facebook.com" target="_blank"><i class='bx bxl-facebook-circle'></i></a>
+    <a href="https://instagram.com" target="_blank"><i class='bx bxl-instagram'></i></a>
+    <a href="https://tiktok.com" target="_blank"><i class='bx bxl-tiktok'></i></a>
+    <a href="https://t.me" target="_blank"><i class='bx bxl-telegram'></i></a>
+  </div>
+  <p>© 2025 Techora - جميع الحقوق محفوظة</p>
+</footer>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+
+  <script>
+  // جلب البيانات من قاعدة البيانات
+  async function loadDashboardData() {
+    try {
+      const response = await fetch('get_dashboard_data.php');
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      
+      console.log('Dashboard data loaded:', data);
+      
+      if (data.success) {
+        updateDashboard(data.stats);
+        // انتظار تحميل Chart.js قبل إنشاء الرسوم البيانية
+        if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+          updateCharts(data.charts);
+        } else {
+          console.warn('Chart.js or ChartDataLabels not loaded yet, retrying...');
+          setTimeout(() => {
+            if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+              updateCharts(data.charts);
+            }
+          }, 500);
+        }
+      } else {
+        console.error('Error from server:', data.message);
+      }
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    }
+  }
+
+  // تحديث لوحة التحكم
+  function updateDashboard(stats) {
+    document.getElementById('total-orders').textContent = stats.total_orders;
+    document.getElementById('delivery-rate').textContent = stats.delivery_rate + '%';
+    document.getElementById('total-profit').textContent = stats.total_profit + ' د.ل';
+    document.getElementById('pending-profit').textContent = stats.pending_profit + ' د.ل';
+    document.getElementById('withdrawn-amount').textContent = stats.withdrawn_amount + ' د.ل';
+    document.getElementById('available-withdrawal').textContent = stats.available_withdrawal + ' د.ل';
+    document.getElementById('expected-profit').textContent = stats.expected_profit + ' د.ل';
+
+    // تحديث حالات الطلبات
+document.getElementById('status-closed').textContent = stats.status_counts["مغلق"] || 0;
+document.getElementById('status-confirmed').textContent = stats.status_counts["تم التأكيد"] || 0;
+document.getElementById('status-pending').textContent = stats.status_counts["قيد الانتظار"] || 0;
+document.getElementById('status-shipping').textContent = stats.status_counts["في الشحن"] || 0;
+document.getElementById('status-delivered').textContent = stats.status_counts["تم التوصيل"] || 0;
+document.getElementById('status-returned').textContent = stats.status_counts["مرتجع"] || 0;
+document.getElementById('status-cancelled').textContent = stats.status_counts["ملغي"] || 0;
+document.getElementById('status-collected').textContent = stats.status_counts["محصل"] || 0;
+document.getElementById('status-preparing').textContent = stats.status_counts["تحت التحضير"] || 0;
+  }
+
+  // تحديث الرسومات البيانية
+  function updateCharts(charts) {
+    // التحقق من وجود العناصر
+    const pieCanvas = document.getElementById('pieChart');
+    const lineCanvas = document.getElementById('lineChart');
+    
+    if (!pieCanvas || !lineCanvas) {
+      console.error('Canvas elements not found');
+      return;
+    }
+    
+    // Pie Chart
+    const ctxPie = pieCanvas.getContext('2d');
+    // التحقق من وجود الرسم البياني السابق وتدميره بشكل صحيح
+    if (window.pieChart && typeof window.pieChart.destroy === 'function') {
+      window.pieChart.destroy();
+      window.pieChart = null;
+    }
+    
+    // التحقق من وجود البيانات - السماح بالبيانات الفارغة لعرض رسالة
+    if (!charts || !charts.pieChart) {
+      console.warn('No pie chart data available');
+      return;
+    }
+    
+    window.pieChart = new Chart(ctxPie, {
+      type: 'pie',
+      data: {
+        labels: charts.pieChart.labels || [],
+        datasets: [{
+          data: charts.pieChart.data || [],
+          backgroundColor: charts.pieChart.colors || ['#4b6b2f', '#ef4444', '#8b5cf6'],
+          borderWidth: 2,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        animation: {
+          animateRotate: true,
+          animateScale: true,
+          duration: 1800,
+          easing: 'easeOutQuart'
+        },
+        plugins: {
+          legend: { 
+            position: 'bottom', 
+            labels: { 
+              padding: 16,
+              font: { size: 14 }
+            } 
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                let label = context.label || '';
+                if (label) {
+                  label += ': ';
+                }
+                label += context.parsed + '%';
+                return label;
+              }
+            }
+          },
+          datalabels: {
+            color: '#fff',
+            font: { weight: 'bold', size: 14 },
+            formatter: (value) => value + '%'
+          }
+        }
+      },
+      plugins: [ChartDataLabels]
+    });
+
+    // Line Chart
+    const ctxLine = lineCanvas.getContext('2d');
+    // التحقق من وجود الرسم البياني السابق وتدميره بشكل صحيح
+    if (window.lineChart && typeof window.lineChart.destroy === 'function') {
+      window.lineChart.destroy();
+      window.lineChart = null;
+    }
+    
+    // التحقق من وجود البيانات - السماح بالبيانات الفارغة لعرض الرسم البياني
+    if (!charts || !charts.lineChart) {
+      console.warn('No line chart data available');
+      return;
+    }
+    
+    // التأكد من وجود labels و data
+    if (!charts.lineChart.labels || charts.lineChart.labels.length === 0) {
+      charts.lineChart.labels = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+    }
+    if (!charts.lineChart.data || charts.lineChart.data.length === 0) {
+      charts.lineChart.data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    }
+    
+    window.lineChart = new Chart(ctxLine, {
+      type: 'line',
+      data: {
+        labels: charts.lineChart.labels || [],
+        datasets: [{
+          label: 'الأرباح (د.ل)',
+          data: charts.lineChart.data || [],
+          borderColor: '#4b6b2f',
+          backgroundColor: 'rgba(75,107,47,0.15)',
+          tension: 0.4,
+          fill: true,
+          borderWidth: 3,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          pointBackgroundColor: '#4b6b2f',
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { 
+            beginAtZero: true, 
+            grid: { color: 'rgba(0,0,0,0.05)' },
+            ticks: {
+              callback: function(value) {
+                return value + ' د.ل';
+              }
+            }
+          },
+          x: { grid: { display: false } }
+        },
+        animation: {
+          duration: 2500,
+          easing: 'easeInOutCubic'
+        }
+      }
+    });
+  }
+
+  // تفعيل الحركات عند الوصول للعنصر بالتمرير
+  function initScrollAnimations() {
+    const observerOptions = {
+      threshold: 0.1,
+      rootMargin: '0px 0px -50px 0px'
+    };
+    
+    const observer = new IntersectionObserver(function(entries) {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('animated');
+          // إيقاف مراقبة العنصر بعد تفعيل الحركة
+          observer.unobserve(entry.target);
+        }
+      });
+    }, observerOptions);
+    
+    // مراقبة جميع العناصر التي تحتاج حركة
+    document.querySelectorAll('.animate-on-scroll, .card, .chart-box').forEach(el => {
+      observer.observe(el);
+    });
+  }
+
+  // تحميل البيانات عند فتح الصفحة
+  document.addEventListener('DOMContentLoaded', function() {
+    // تفعيل الحركات
+    initScrollAnimations();
+    
+    // انتظار تحميل Chart.js و ChartDataLabels
+    if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+      loadDashboardData();
+    } else {
+      // إعادة المحاولة بعد تحميل المكتبات
+      window.addEventListener('load', function() {
+        setTimeout(loadDashboardData, 100);
+      });
+    }
+  });
+
+  // تحديث البيانات كل 30 ثانية
+  setInterval(loadDashboardData, 30000);
+
+</script>
+
+</body>
+</html>

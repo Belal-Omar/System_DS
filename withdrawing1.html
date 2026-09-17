@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>سحب الأرباح</title>
+    <link rel="icon" type="image/png" href="brand_logo.php?f=logo">
+    <link rel="shortcut icon" type="image/png" href="brand_logo.php?f=favicon">
+    <link rel="apple-touch-icon" href="brand_logo.php?f=logo">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="notifications.js?v=2"></script>
+</head>
+
+<body class="bg-gray-100 p-4 font-sans">
+
+  <h1 class="text-2xl font-bold mb-4">📤 سحب الأرباح</h1>
+
+  <!-- أرباحك المتاحة -->
+  <div class="bg-white p-4 rounded shadow mb-4">
+    <h2 class="text-xl font-bold">💰 أرباحك المتاحة</h2>
+    <p id="currentProfit" class="text-3xl font-bold text-green-600"></p>
+  </div>
+
+  <!-- تم السحب -->
+  <div class="bg-white p-4 rounded shadow mb-4">
+    <h2 class="text-xl font-bold">🏦 تم السحب</h2>
+    <p id="withdrawDone" class="text-3xl font-bold text-purple-600"></p>
+  </div>
+
+  <!-- نموذج السحب -->
+  <div class="bg-white p-4 rounded shadow mb-4">
+    <label class="block mb-2 font-bold">المبلغ المراد سحبه:</label>
+    <input id="amountInput" type="number" class="border p-2 w-full rounded mb-4">
+
+    <label class="block mb-2 font-bold">رقم فودافون كاش:</label>
+    <input id="phoneInput" type="text" placeholder="010..." class="border p-2 w-full rounded mb-4">
+
+    <button onclick="withdraw()" class="bg-purple-600 text-white px-4 py-2 rounded w-full">
+      تأكيد السحب
+    </button>
+  </div>
+
+  <!-- حالة الطلبات -->
+  <div class="bg-white p-4 rounded shadow mt-6">
+    <h2 class="text-xl font-bold mb-4">📋 حالة طلباتك</h2>
+    <table class="w-full text-center border-collapse">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="p-2 border">رقم الطلب</th>
+          <th class="p-2 border">المبلغ</th>
+          <th class="p-2 border">رقم الهاتف</th>
+          <th class="p-2 border">الحالة</th>
+        </tr>
+      </thead>
+      <tbody id="myWithdrawalsBody"></tbody>
+    </table>
+  </div>
+
+<script>
+const currentProfitBox = document.getElementById("currentProfit");
+const withdrawDoneBox = document.getElementById("withdrawDone");
+const myWithdrawalsBody = document.getElementById("myWithdrawalsBody");
+
+// تحميل الأرباح
+let finalProfit = Number(localStorage.getItem("finalProfit")) || 0;
+
+// تحميل بيانات السحب
+let dashboardData = JSON.parse(localStorage.getItem("dashboardData")) || { withdrawals: [] };
+
+// حساب إجمالي السحب "تم التحويل"
+function loadWithdrawDone() {
+  const confirmed = dashboardData.withdrawals.filter(w => w.status === "تم التحويل");
+  const total = confirmed.reduce((sum, w) => sum + w.amount, 0);
+  withdrawDoneBox.textContent = total + " د.ل";
+}
+
+// عرض حالة طلبات المسوق
+function renderMyWithdrawals() {
+  myWithdrawalsBody.innerHTML = "";
+  if(dashboardData.withdrawals.length === 0){
+    myWithdrawalsBody.innerHTML = `<tr><td colspan="4" class="p-2 text-gray-500">لا توجد طلبات</td></tr>`;
+    return;
+  }
+
+  dashboardData.withdrawals.forEach(w => {
+    myWithdrawalsBody.innerHTML += `
+      <tr>
+        <td class="p-2 border">${w.id}</td>
+        <td class="p-2 border">${w.amount} د.ل</td>
+        <td class="p-2 border">${w.phone}</td>
+        <td class="p-2 border font-bold ${w.status === "تم التحويل" ? "text-green-600" : w.status === "مرفوض" ? "text-red-600" : "text-yellow-600"}">${w.status}</td>
+      </tr>
+    `;
+  });
+}
+
+currentProfitBox.textContent = finalProfit + " د.ل";
+loadWithdrawDone();
+renderMyWithdrawals();
+
+function withdraw() {
+  const amount = Number(document.getElementById("amountInput").value);
+  const phone = document.getElementById("phoneInput").value;
+
+  if (!phone) return showWarning("من فضلك أدخل رقم فودافون كاش");
+  if (amount <= 0) return showWarning("الرجاء إدخال مبلغ صحيح");
+  if (amount > finalProfit) return showError("لا يوجد رصيد كافٍ");
+
+  // **لا يتم خصم الرصيد إلا بعد موافقة الأدمن**
+
+  // إضافة طلب جديد
+  let wd = {
+    id: "WD-" + (dashboardData.withdrawals.length + 1),
+    amount: amount,
+    phone: phone,
+    status: "معلق"
+  };
+
+  dashboardData.withdrawals.push(wd);
+  localStorage.setItem("dashboardData", JSON.stringify(dashboardData));
+
+  showSuccess("تم إرسال طلب السحب ✔️ بانتظار موافقة الأدمن");
+  renderMyWithdrawals();
+}
+</script>
+
+</body>
+</html>

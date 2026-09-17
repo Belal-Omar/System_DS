@@ -1,0 +1,1369 @@
+<?php 
+session_start();
+include("config.php");
+
+// التحقق من تسجيل الدخول ونوع المستخدم
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.html");
+    exit;
+}
+
+$user_id = $_SESSION['user_id'] ?? null;
+$user = null;
+$user_query = null;
+
+if ($user_id && isset($conn)) {
+    $user_id = (int)$user_id;
+    $user_query = $conn->query("SELECT * FROM users WHERE id = $user_id");
+    if ($user_query) {
+        $user = $user_query->fetch_assoc();
+    }
+}
+
+// منع التاجر من دخول صفحات المسوق
+if ($user && ($user['user_type'] ?? '') == 'تاجر') {
+    header("Location: home111.php");
+    exit;
+}
+
+// جلب بيانات المستخدم للـ navbar
+$user_name = '';
+if ($user_id && $user) {
+    $user_name = $user['fullname'] ?? '';
+}
+
+// الحصول على الصفحة الحالية
+$current_page = basename($_SERVER['PHP_SELF'] ?? $_SERVER['SCRIPT_NAME'] ?? 'index.php');
+$current_page = str_replace(['.php', '.html'], '', $current_page);
+?>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>الطلبات</title>
+    <?php include __DIR__ . '/favicon_tags.php'; ?>
+  <link rel="stylesheet" href="Stylepp.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <!-- SheetJS for Excel parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    /* Modal styles for scrollable content */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 20px;
+    }
+    
+    .modal-card {
+      background: white;
+      border-radius: 12px;
+      max-width: 600px;
+      width: 100%;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      overflow: hidden;
+    }
+    
+    .modal-close {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background: #f3f4f6;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: #6b7280;
+      transition: all 0.2s;
+      z-index: 10;
+    }
+    
+    .modal-close:hover {
+      background: #e5e7eb;
+      color: #374151;
+    }
+    
+    .modal-title {
+      background: #4b6b2f;
+      color: white;
+      padding: 20px;
+      margin: 0;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+    
+    #statusContent {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      max-height: calc(85vh - 140px); /* Account for title and actions */
+    }
+    
+    #statusContent::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    #statusContent::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+    
+    #statusContent::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 4px;
+    }
+    
+    #statusContent::-webkit-scrollbar-thumb:hover {
+      background: #a8a8a8;
+    }
+    
+    .modal-actions {
+      padding: 20px;
+      border-top: 1px solid #e5e7eb;
+      background: #f9fafb;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+    
+    .order-items {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 10px;
+    }
+    
+    .order-items::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .order-items::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 3px;
+    }
+    
+    .order-items::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 3px;
+    }
+    
+    .order-item {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+      border-bottom: 1px solid #f3f4f6;
+      align-items: center;
+    }
+    
+    .order-item:last-child {
+      border-bottom: none;
+    }
+    
+    .order-item img {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+    }
+    
+    .mini-title {
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 4px;
+    }
+    
+    .mini-meta {
+      font-size: 13px;
+      color: #6b7280;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 640px) {
+      .modal {
+        padding: 10px;
+      }
+      
+      .modal-card {
+        max-height: 90vh;
+      }
+      
+      #statusContent {
+        padding: 15px;
+        max-height: calc(90vh - 120px);
+      }
+    }
+    
+    .main-navbar {
+      position: fixed;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 72rem;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+      border-radius: 1rem;
+      z-index: 1000;
+      padding: 0.8rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .main-navbar.hidden {
+      transform: translateX(-50%) translateY(-150%);
+      opacity: 0;
+    }
+    .navbar-logo {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #4b6b2f;
+      letter-spacing: 1px;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .navbar-logo i {
+      font-size: 1.5rem;
+    }
+    .navbar-logo:hover {
+      color: #3a5524;
+      transform: scale(1.03);
+    }
+    .navbar-links {
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+    }
+    .navbar-link {
+      font-weight: 600;
+      color: #1e293b;
+      text-decoration: none;
+      font-size: 1.1rem;
+      transition: all 0.3s ease;
+      position: relative;
+      padding: 0.5rem 0;
+    }
+    .navbar-link.active {
+      color: #4b6b2f;
+      font-weight: 700;
+    }
+    .navbar-link.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background-color: #4b6b2f;
+      border-radius: 3px;
+      animation: slideIn 0.3s ease;
+    }
+    .navbar-link:hover {
+      color: #4b6b2f;
+      transform: translateY(-2px);
+    }
+    .navbar-link:hover::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background-color: #4b6b2f;
+      border-radius: 3px;
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+      from { width: 0; opacity: 0; }
+      to { width: 100%; opacity: 1; }
+    }
+    .navbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+    }
+    .navbar-cart {
+      position: relative;
+      color: #4b6b2f;
+      font-size: 1.5rem;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+    }
+    .navbar-cart:hover {
+      background-color: rgba(75, 107, 47, 0.1);
+      transform: translateY(-2px);
+    }
+    .navbar-cart .cart-count {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      background: #ef4444;
+      color: white;
+      font-size: 0.7rem;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      border: 2px solid white;
+    }
+    .navbar-btn {
+      padding: 0.6rem 1.4rem;
+      border-radius: 0.6rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      font-size: 1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .navbar-btn i {
+      font-size: 1.1rem;
+    }
+    .navbar-btn-login {
+      color: #4b6b2f;
+      border: 2px solid #4b6b2f;
+    }
+    .navbar-btn-login:hover {
+      background-color: rgba(75, 107, 47, 0.1);
+      transform: translateY(-2px);
+    }
+    .navbar-btn-register {
+      background-color: #4b6b2f;
+      color: white;
+    }
+    .navbar-btn-register:hover {
+      background-color: #3a5524;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(75, 107, 47, 0.2);
+    }
+    .navbar-btn-logout {
+      background-color: #ef4444;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .navbar-btn-logout:hover {
+      background-color: #dc2626;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    }
+    .navbar-user {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      color: #4b6b2f;
+      text-decoration: none;
+      font-weight: 600;
+      padding: 0.5rem 1rem;
+      border-radius: 0.6rem;
+      transition: all 0.3s ease;
+    }
+    .navbar-user:hover {
+      background-color: rgba(75, 107, 47, 0.1);
+      transform: translateY(-2px);
+    }
+    .navbar-user i {
+      font-size: 1.4rem;
+    }
+    .hidden {
+      transform: translate(-50%, -150%) !important;
+      opacity: 0;
+      pointer-events: none;
+    }
+    @media (max-width: 1024px) {
+      .main-navbar {
+        padding: 0.8rem 1.5rem;
+      }
+      .navbar-logo {
+        font-size: 1.6rem;
+      }
+      .navbar-links {
+        gap: 1.2rem;
+      }
+      .navbar-link {
+        font-size: 1rem;
+      }
+      .navbar-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+      }
+    }
+
+    .status {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .status.pending {
+      background: #fef3c7;
+      color: #d97706;
+    }
+    .status.completed {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .status.rejected {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    .status.shipping {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+    .status.confirmed {
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+    .mini-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .mini-item:last-child {
+      border-bottom: none;
+    }
+    .mini-item img {
+      width: 40px;
+      height: 40px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+    }
+    .mini-title {
+      font-weight: 600;
+      font-size: 14px;
+      color: #1f2937;
+    }
+    .mini-meta {
+      font-size: 12px;
+      color: #6b7280;
+    }
+    .order-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    .order-item img {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 6px;
+    }
+    .refresh-btn {
+      background: #4b6b2f;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-left: 10px;
+    }
+    .refresh-btn:hover {
+      background: #3a5524;
+    }
+    .refresh-btn.loading {
+      background: #6b7280;
+      cursor: not-allowed;
+    }
+    .error-message {
+      background: #fee2e2;
+      color: #dc2626;
+      padding: 12px;
+      border-radius: 6px;
+      margin: 10px 0;
+      text-align: center;
+    }
+    .success-message {
+      background: #d1fae5;
+      color: #065f46;
+      padding: 12px;
+      border-radius: 6px;
+      margin: 10px 0;
+      text-align: center;
+    }
+    .orders-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .orders-table th {
+      background: #f8f9fa;
+      padding: 12px;
+      text-align: right;
+      font-weight: bold;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    .orders-table td {
+      padding: 12px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .orders-table tr:hover {
+      background: #f9fafb;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="main-navbar" id="mainNavbar">
+    <div style="display: flex; align-items: center; gap: 2.5rem;">
+      <a href="Home1.html" class="navbar-logo">
+        <img src="brand_logo.php?f=logo" alt="Miskova Global" style="height: 42px; width: auto; object-fit: contain; border-radius: 6px;">
+        <span>لوحة المسوق</span>
+      </a>
+      <div class="navbar-links">
+        <a href="Home1.html" class="navbar-link <?php echo ($current_page == 'Home1' || $current_page == 'home') ? 'active' : ''; ?>">
+          <i class='bx bx-home-alt'></i>
+          الرئيسية
+        </a>
+        <a href="product.html" class="navbar-link <?php echo ($current_page == 'product') ? 'active' : ''; ?>">
+          <i class='bx bx-package'></i>
+          المنتجات
+        </a>
+        <a href="orders.html" class="navbar-link <?php echo ($current_page == 'orders') ? 'active' : ''; ?>">
+          <i class='bx bx-receipt'></i>
+          الطلبات
+        </a>
+        <a href="shipping_cities_statistics.html" class="navbar-link <?php echo ($current_page == 'shipping_cities_statistics') ? 'active' : ''; ?>">
+          <i class='bx bx-map-pin'></i>
+          إحصائيات المدن
+        </a>
+        <a href="withdrawals.php" class="navbar-link <?php echo ($current_page == 'withdrawals') ? 'active' : ''; ?>">
+          <i class='bx bx-money-withdraw'></i>
+          السحب
+        </a>
+        <a href="product_stats.php" class="navbar-link <?php echo ($current_page == 'product_stats') ? 'active' : ''; ?>">
+          <i class='bx bx-stats'></i>
+          إحصائيات المنتجات
+        </a>
+      </div>
+    </div>
+    <div class="navbar-actions">
+      <a href="cart.html" class="navbar-cart" title="سلة المشتريات">
+        <i class='bx bx-cart'></i>
+        <span class="cart-count">0</span>
+      </a>
+      <?php if ($user_id && $user): ?>
+        <a href="profile_marketer.php" class="navbar-user">
+          <i class='bx bx-user-circle'></i>
+          <span class="hidden md:inline"><?php echo htmlspecialchars($user_name); ?></span>
+        </a>
+        <a href="logout.php" class="navbar-btn navbar-btn-logout">
+          <i class='bx bx-log-out'></i>
+          <span>تسجيل الخروج</span>
+        </a>
+      <?php else: ?>
+        <a href="login.html" class="navbar-btn navbar-btn-login">
+          <i class='bx bx-log-in-circle'></i>
+          <span>تسجيل الدخول</span>
+        </a>
+        <a href="register.html" class="navbar-btn navbar-btn-register">
+          <i class='bx bx-user-plus'></i>
+          <span>إنشاء حساب</span>
+        </a>
+      <?php endif; ?>
+    </div>
+  </nav>
+
+  <script>
+    // Navbar scroll behavior
+    let lastScroll = 0;
+    const navbar = document.getElementById('mainNavbar');
+    let isScrolling = false;
+    
+    function handleScroll() {
+      if (isScrolling) return;
+      
+      isScrolling = true;
+      
+      requestAnimationFrame(() => {
+        const currentScroll = window.pageYOffset;
+        
+        if (currentScroll <= 0) {
+          navbar.classList.remove('hidden');
+          navbar.style.transform = 'translateX(-50%)';
+          isScrolling = false;
+          return;
+        }
+        
+        if (currentScroll > lastScroll && currentScroll > 100) {
+          // Scrolling down
+          navbar.classList.add('hidden');
+        } else {
+          // Scrolling up
+          navbar.classList.remove('hidden');
+          navbar.style.transform = 'translateX(-50%)';
+        }
+        
+        lastScroll = currentScroll;
+        isScrolling = false;
+      });
+    }
+    
+    // Throttle scroll events for better performance
+    let scrollTimeout;
+    window.addEventListener('scroll', () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(handleScroll, 50);
+    }, { passive: true });
+    
+    // Cart count functionality
+    function updateCartCount() {
+      try {
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const cartCountEls = document.querySelectorAll('.cart-count');
+        const totalItems = cart.reduce((total, item) => total + (parseInt(item.quantity) || 0), 0);
+        
+        cartCountEls.forEach(el => {
+          el.textContent = totalItems;
+          // Add animation when cart count changes
+          if (parseInt(el.textContent) !== parseInt(el.dataset.lastCount || '0')) {
+            el.style.transform = 'scale(1.3)';
+            setTimeout(() => {
+              el.style.transform = 'scale(1)';
+            }, 200);
+          }
+          el.dataset.lastCount = totalItems;
+        });
+      } catch (e) {
+        console.error('Error updating cart count:', e);
+      }
+    }
+    
+    // Initialize cart count on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initial cart count update
+      updateCartCount();
+      
+      // Update cart count when storage changes (from other tabs/windows)
+      window.addEventListener('storage', updateCartCount);
+      
+      // Update cart count every second (to catch any changes from other tabs)
+      setInterval(updateCartCount, 1000);
+      
+      // Add click animation to cart icon
+      const cartIcon = document.querySelector('.navbar-cart');
+      if (cartIcon) {
+        cartIcon.addEventListener('click', function() {
+          this.style.transform = 'scale(0.9)';
+          setTimeout(() => {
+            this.style.transform = '';
+          }, 200);
+        });
+      }
+    });
+  </script>
+
+<main class="page-container">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h1 class="page-title">جميع الطلبات</h1>
+    <button class="refresh-btn" onclick="syncOrders()" id="refreshBtn">
+      <i class="fa fa-refresh"></i> تحديث الطلبات
+    </button>
+    
+    <div style="margin-right: 10px; display: inline-block;">
+        <button class="refresh-btn" style="background-color: #10b981; margin-left: 5px;" onclick="downloadTemplate()">
+          <i class="fa fa-download"></i> تحميل النموذج
+        </button>
+        <input type="file" id="orderFile" accept=".csv, .xlsx, .xls" style="display: none;" onchange="uploadOrdersFile()">
+        <button class="refresh-btn" style="background-color: #2563eb;" onclick="document.getElementById('orderFile').click()">
+          <i class="fa fa-upload"></i> رفع ملف Excel/CSV
+        </button>
+    </div>
+  </div>
+
+  <!-- رسائل التحديث -->
+  <div id="messageContainer"></div>
+
+  <!-- مربع البحث -->
+  <div class="search-container" style="margin-bottom: 20px; text-align: center;">
+    <div style="display: inline-block; position: relative; max-width: 400px; width: 100%;">
+      <input 
+        type="text" 
+        id="searchInput" 
+        placeholder="ابحث بالاسم أو رقم الهاتف..." 
+        style="
+          width: 100%; 
+          padding: 12px 45px 12px 15px; 
+          border: 2px solid #e5e7eb; 
+          border-radius: 25px; 
+          font-size: 16px; 
+          outline: none; 
+          transition: all 0.3s ease;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        "
+        oninput="filterOrders()"
+      >
+      <i class='bx bx-search' style="
+        position: absolute; 
+        left: 15px; 
+        top: 50%; 
+        transform: translateY(-50%); 
+        font-size: 20px; 
+        color: #9ca3af;
+      "></i>
+    </div>
+  </div>
+
+  <div class="orders-wrapper">
+    <table class="orders-table">
+      <thead>
+        <tr>
+          <th>رقم/تاريخ</th>
+          <th>اسم العميل</th>
+          <th>المنتجات</th>
+          <th>المنطقة</th>
+          <th>مدينة الشحن</th>
+          <th>إجمالي المنتجات</th>
+          <th>صافي ربحك</th>
+          <th>الإجمالي النهائي</th>
+          <th>الحالة</th>
+          <th>سبب الإلغاء/الإرجاع</th>
+          <th>تعليقات الإدارة</th>
+          <th>إجراءات</th>
+        </tr>
+      </thead>
+      <tbody id="orders-body"></tbody>
+    </table>
+  </div>
+</main>
+
+<!-- Modal: حالة/تفاصيل الطلب -->
+<div id="statusModal" class="modal hidden">
+  <div class="modal-card">
+    <button class="modal-close" id="closeStatusModal">&times;</button>
+    <h2 class="modal-title">تفاصيل الطلب</h2>
+    <div id="statusContent"></div>
+
+    <div class="modal-actions">
+      <button id="closeStatus" class="btn ghost">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: تعليقات الإدارة -->
+<div id="commentsViewModal" class="modal hidden">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeCommentsViewModal()">&times;</button>
+    <h2 class="modal-title" style="background: #9333ea;">تعليقات الإدارة - الطلب #<span id="commentsOrderId"></span></h2>
+    <div id="commentsViewContent" style="padding: 20px; max-height: 400px; overflow-y: auto;">
+      <div style="text-align: center; color: #6b7280; padding: 30px;">
+        <i class='bx bx-loader-alt bx-spin' style="font-size: 2rem;"></i>
+        <p>جاري تحميل التعليقات...</p>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button onclick="closeCommentsViewModal()" class="btn ghost">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== orders.html JS ===== */
+
+const cartCountEls = document.querySelectorAll('.cart-count');
+const ordersBody = document.getElementById('orders-body');
+const statusModal = document.getElementById('statusModal');
+const statusContent = document.getElementById('statusContent');
+const closeStatusModal = document.getElementById('closeStatusModal');
+const closeStatusBtn = document.getElementById('closeStatus');
+const refreshBtn = document.getElementById('refreshBtn');
+const messageContainer = document.getElementById('messageContainer');
+
+    // Generate and Download Excel Template
+    function downloadTemplate() {
+      // Define Headers matching the latest requirement (with Admin columns)
+      const headers = [
+        "رقم/تاريخ", 
+        "اسم العميل", 
+        "رقم الهاتف", 
+        "المنتجات", 
+        "لون", 
+        "مقاس", 
+        "كميه", 
+        "المنطقة", 
+        "مدينة الشحن", 
+        "العنوان بالتفصيل", 
+        "العمولة", 
+        "الحالة",
+        "سبب الإلغاء/الإرجاع",
+        "تعليقات الإدارة",
+        "إجراءات"
+      ];
+      
+      // Create Worksheet with JUST headers (No data)
+      const wsData = [headers];
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+      // Create Workbook
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "OrderTemplate");
+
+      // Write and Download
+      XLSX.writeFile(wb, "Order_Upload_Template.xlsx");
+    }
+
+    // Existing Upload Function (Ensure it remains below or above correctly)
+    async function uploadOrdersFile() {
+    console.log("Upload function triggered");
+    const fileInput = document.getElementById('orderFile');
+    const file = fileInput.files[0];
+    const messageContainer = document.getElementById('messageContainer');
+    
+    if (!file) {
+        console.log("No file selected");
+        return;
+    }
+    
+    console.log("File selected:", file.name, file.type, file.size);
+
+    // Show loading state
+    const btn = document.querySelector('button[onclick*="orderFile"]');
+    if (!btn) {
+        console.error("Button not found");
+        return;
+    }
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> جاري المعالجة...';
+    btn.disabled = true;
+    messageContainer.innerHTML = '<div style="background: #e0f2fe; color: #0284c7; padding: 10px; border-radius: 5px;">جاري معالجة الملف...</div>';
+
+    // Helper to send file
+    const sendFile = (fileToSend) => {
+        console.log("Sending file to backend...");
+        const formData = new FormData();
+        formData.append('orderFile', fileToSend);
+        
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> جاري الرفع...';
+
+        fetch('import_orders.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            console.log("Response status:", response.status);
+            return response.text().then(text => { // Get text first to debug invalid JSON
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error("Invalid JSON response:", text);
+                    throw new Error("استجابة الخادم غير صالحة: " + text.substring(0, 100));
+                }
+            });
+        })
+        .then(data => {
+            console.log("Data received:", data);
+            if (data.success) {
+                let msg = `<div class="success-message">${data.message}</div>`;
+                if (data.errors && data.errors.length > 0) {
+                    msg += `<div class="error-message" style="text-align: right; max-height: 200px; overflow-y: auto;">
+                        <strong>تحذيرات:</strong><br>
+                        ${data.errors.join('<br>')}
+                    </div>`;
+                }
+                messageContainer.innerHTML = msg;
+                // Refresh orders list
+                syncOrders(); 
+            } else {
+                 messageContainer.innerHTML = `<div class="error-message">${data.message}</div>`;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            messageContainer.innerHTML = `<div class="error-message">حدث خطأ: ${error.message}</div>`;
+        })
+        .finally(() => {
+            // Reset button
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            fileInput.value = ''; // Clear input
+        });
+    };
+
+    // Check if Excel file
+    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        console.log("Detected Excel file");
+        
+        if (typeof XLSX === 'undefined') {
+            console.error("SheetJS library not loaded");
+            messageContainer.innerHTML = '<div class="error-message">مكتبة معالجة Excel لم يتم تحميلها. تأكد من اتصالك بالإنترنت.</div>';
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                console.log("File read complete, parsing...");
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                
+                // Get first sheet
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // Convert to CSV
+                const csvOutput = XLSX.utils.sheet_to_csv(worksheet);
+                console.log("CSV Output length:", csvOutput.length);
+                
+                if (csvOutput.length < 10) {
+                    throw new Error("الملف يبدو فارغاً أو المحتوى غير مقروء");
+                }
+
+                // Create Blob
+                const blob = new Blob([csvOutput], { type: 'text/csv;charset=utf-8;' });
+                const csvFile = new File([blob], "converted_orders.csv", { type: "text/csv" });
+                
+                sendFile(csvFile);
+            } catch (err) {
+                console.error("Error parsing Excel:", err);
+                messageContainer.innerHTML = `<div class="error-message">حدث خطأ أثناء قراءة ملف Excel: ${err.message}</div>`;
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                fileInput.value = '';
+            }
+        };
+        reader.onerror = function(err) {
+            console.error("FileReader error:", err);
+            messageContainer.innerHTML = '<div class="error-message">فشل في قراءة الملف</div>';
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        };
+        reader.readAsArrayBuffer(file);
+    } else {
+        // Assume CSV
+        console.log("Detected CSV file");
+        sendFile(file);
+    }
+}
+
+let orders = JSON.parse(localStorage.getItem('orders')) || [];
+
+// تحديث عداد السلة
+function updateCartCount() {
+  const cart = JSON.parse(localStorage.getItem('cart')) || [];
+  cartCountEls.forEach(el => el.textContent = cart.length);
+}
+updateCartCount();
+
+// تحويل الحالة إلى كلاس لون
+function statusClass(status) {
+  if (status === 'تم التوصيل') return 'status completed';
+  if (status === 'مرفوض' || status === 'ملغي') return 'status rejected';
+  if (status === 'في الشحن') return 'status shipping';
+  if (status === 'تم التأكيد') return 'status confirmed';
+  return 'status pending';
+}
+
+// دالة البحث والفلترة
+function filterOrders() {
+  const searchInput = document.getElementById('searchInput').value.toLowerCase();
+  const ordersBody = document.getElementById('orders-body');
+  const rows = ordersBody.getElementsByTagName('tr');
+  
+  for (let row of rows) {
+    const nameCell = row.cells[1]; // عمود اسم العميل
+    if (nameCell) {
+      const nameText = nameCell.textContent.toLowerCase();
+      const phoneText = nameCell.textContent.toLowerCase(); // رقم الهاتف موجود في نفس العمود
+      
+      if (nameText.includes(searchInput) || phoneText.includes(searchInput)) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    }
+  }
+}
+
+// تنسيق رقم الهاتف لضهور الصفر في البداية
+function formatPhoneNumber(phone) {
+  if (!phone) return '';
+  
+  // تحويل الرقم إلى نص للتأكد من الحفاظ على الأصفار
+  let phoneStr = String(phone);
+  
+  // إذا كان الرقم يبدأ بـ 0، نحافظ عليه كما هو
+  if (phoneStr.startsWith('0')) {
+    return phoneStr;
+  }
+  
+  // إذا كان الرقم مكون من 10 أرقام ولا يبدأ بـ 0، نضيف 0 في البداية
+  if (phoneStr.length === 10 && !phoneStr.startsWith('0')) {
+    return '0' + phoneStr;
+  }
+  
+  // إذا كان الرقم مكون من 11 رقمًا ويبدأ بـ 1، نستبدل الـ 1 بـ 0
+  if (phoneStr.length === 11 && phoneStr.startsWith('1')) {
+    return '0' + phoneStr.substring(1);
+  }
+  
+  // في الحالات الأخرى، نرجع الرقم كما هو
+  return phoneStr;
+}
+
+// عرض رسالة
+function showMessage(message, type = 'error') {
+  messageContainer.innerHTML = `<div class="${type === 'error' ? 'error-message' : 'success-message'}">${message}</div>`;
+  setTimeout(() => {
+    messageContainer.innerHTML = '';
+  }, 5000);
+}
+
+// مزامنة الطلبات مع قاعدة البيانات
+async function syncOrders() {
+  try {
+    refreshBtn.classList.add('loading');
+    refreshBtn.disabled = true;
+    refreshBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> جاري التحديث...';
+    
+    console.log('بدء جلب الطلبات من الخادم...');
+    
+    const response = await fetch('get_orders_simple.php');
+    
+    if (!response.ok) {
+      throw new Error(`خطأ في الخادم: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log('البيانات المستلمة:', data);
+    
+    if (data.success) {
+      // تحديث الطلبات من قاعدة البيانات
+      orders = data.orders || [];
+      localStorage.setItem('orders', JSON.stringify(orders));
+      renderOrders();
+      showMessage(`✅ ${data.message || 'تم تحديث الطلبات بنجاح'} - ${orders.length} طلب`, 'success');
+    } else {
+      showMessage('❌ ' + (data.message || 'فشل في تحديث الطلبات'));
+      console.error('API Error:', data);
+    }
+  } catch (error) {
+    showMessage('❌ خطأ في الاتصال: ' + error.message);
+    console.error('Network Error:', error);
+    
+    // محاولة استخدام البيانات المحلية كبديل
+    const localOrders = JSON.parse(localStorage.getItem('orders')) || [];
+    if (localOrders.length > 0) {
+      showMessage('⚠️ استخدام البيانات المحلية المخزنة', 'success');
+      orders = localOrders;
+      renderOrders();
+    }
+  } finally {
+    refreshBtn.classList.remove('loading');
+    refreshBtn.disabled = false;
+    refreshBtn.innerHTML = '<i class="fa fa-refresh"></i> تحديث الطلبات';
+  }
+}
+
+// تحميل الطلبات
+function loadOrders() {
+  orders = JSON.parse(localStorage.getItem('orders')) || [];
+  renderOrders();
+  updateCartCount();
+}
+
+// عرض الطلبات
+function renderOrders() {
+  ordersBody.innerHTML = '';
+  
+  if (!orders.length) {
+    ordersBody.innerHTML = `
+      <tr>
+        <td colspan="11" class="empty" style="text-align: center; padding: 40px; color: #6b7280;">
+          <i class="fa fa-inbox" style="font-size: 48px; margin-bottom: 16px; display: block;"></i>
+          لا توجد طلبات بعد
+          <br>
+          <button onclick="syncOrders()" class="refresh-btn" style="margin-top: 16px;">
+            <i class="fa fa-refresh"></i> جلب الطلبات
+          </button>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  orders.forEach((order, index) => {
+    const orderRow = document.createElement('tr');
+
+    const shippingCost = order.shipping_cost || 0;
+    const netProfit = order.commission_total || 0;
+    const finalTotal = order.total || 0;
+    const itemsTotal = finalTotal - (order.items || []).reduce((sum, it) => sum + (it.commission * it.quantity), 0) - shippingCost;
+
+    // products cell
+    const productsHtml = (order.items || []).map(it => `
+      <div class="mini-item">
+        <img src="${it.image || 'imgs/default-product.jpg'}" alt="${it.name}" onerror="this.src='imgs/default-product.jpg'">
+        <div>
+          <div class="mini-title">${it.name}</div>
+          <div class="mini-meta">لون: ${it.color || '---'} | ${it.size || '---'} | كمية: ${it.quantity || 1}</div>
+        </div>
+      </div>
+    `).join('') || 'لا توجد منتجات';
+
+    orderRow.innerHTML = `
+      <td>
+        #${order.id}
+        <br>
+        <small style="color: #6b7280; font-size: 12px;">${order.date ? new Date(order.date).toLocaleDateString('ar-EG') : ''}</small>
+      </td>
+      <td>
+        ${order.name || 'غير معروف'}
+        <br>
+        <small style="color: #6b7280; font-size: 14px; font-weight: bold;">${formatPhoneNumber(order.phone) || ''}</small>
+      </td>
+      <td>${productsHtml}</td>
+      <td>${order.region || '---'}</td>
+      <td>${order.shipping_city_name || '---'}</td>
+      <td>${itemsTotal.toFixed(2)} د.ل</td>
+      <td><strong style="color: #059669;">${netProfit.toFixed(2)} د.ل</strong></td>
+      <td><strong>${finalTotal.toFixed(2)} د.ل</strong></td>
+      <td><span class="${statusClass(order.status)}">${order.status || 'قيد الانتظار'}</span></td>
+      <td>
+        ${order.status === 'ملغي' || order.status === 'مرفوض' ? 
+          `<div style="color: #dc2626; font-size: 12px;">
+            <i class="fa fa-times-circle" style="margin-left: 4px;"></i>
+            ${order.cancellation_reason || 'غير محدد'}
+          </div>` : 
+          order.status === 'مرتجع' ? 
+          `<div style="color: #f59e0b; font-size: 12px;">
+            <i class="fa fa-undo" style="margin-left: 4px;"></i>
+            ${order.return_reason || 'غير محدد'}
+          </div>` :
+          '<span style="color: #6b7280; font-size: 12px;">—</span>'
+        }
+      </td>
+      <td>
+        <button class="btn small" style="background: #9333ea; color: white;" onclick="showOrderComments(${order.id})">
+          <i class='bx bx-comment-detail'></i> التعليقات
+        </button>
+      </td>
+      <td>
+        <button class="btn small" onclick="openStatusModal(${index})">عرض التفاصيل</button>
+      </td>
+    `;
+    ordersBody.appendChild(orderRow);
+  });
+}
+
+// ... (rest of the code remains the same)
+// فتح المودال وعرض تفاصيل الطلب
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-action="view"]');
+  if (!btn) return;
+  const idx = +btn.dataset.idx;
+  openStatusModal(idx);
+});
+
+function openStatusModal(idx) {
+  const order = orders[idx];
+  if (!order) return;
+  
+  const total = order.total?.toFixed(2) || '0.00';
+  const shippingCost = order.shipping_cost || 0;
+  const commissionNetTotal = order.commission_total || 0;
+  
+  // Calculate Gross Commission Total and Items Base Total
+  let itemsBaseTotal = 0;
+  let itemsGrossCommissionTotal = 0;
+  (order.items || []).forEach(it => {
+    itemsBaseTotal += (it.price || 0) * (it.quantity || 1);
+    itemsGrossCommissionTotal += (it.commission || 0) * (it.quantity || 1);
+  });
+
+  statusContent.innerHTML = `
+    <div style="line-height: 1.8;">
+      <h3 style="color: #4b6b2f; margin-bottom: 15px; text-align: center;">📋 تفاصيل الطلب</h3>
+      
+      <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <h4 style="color: #1e293b; margin-bottom: 10px;">👤 بيانات العميل</h4>
+        <p><strong>الاسم الكامل:</strong> ${order.name || 'غير معروف'}</p>
+        <p><strong>رقم الهاتف:</strong> ${formatPhoneNumber(order.phone) || '---'}</p>
+        <p><strong>المنطقة:</strong> ${order.region || '---'}</p>
+        <p><strong>العنوان الكامل:</strong> ${order.address || '---'}</p>
+      </div>
+      
+      <div style="background: #f0f7e8; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <h4 style="color: #4b6b2f; margin-bottom: 10px;">📦 معلومات الشحن</h4>
+        <p><strong>مدينة الشحن:</strong> ${order.shipping_city_name || '---'}</p>
+        <p><strong>مصاريف الشحن:</strong> ${shippingCost.toFixed(2)} د.ل</p>
+        <p><strong>تاريخ الطلب:</strong> ${order.date ? new Date(order.date).toLocaleString('ar-EG') : '---'}</p>
+      </div>
+      
+      <hr style="margin: 15px 0;">
+      
+      <h4 style="margin: 16px 0 8px 0;">🛍️ المنتجات:</h4>
+      <div class="order-items">
+        ${(order.items || []).map(it => `
+          <div class="order-item">
+            <img src="${it.image || 'imgs/default-product.jpg'}" alt="${it.name}" onerror="this.src='imgs/default-product.jpg'">
+            <div style="flex: 1;">
+              <div class="mini-title">${it.name}</div>
+              <div class="mini-meta">لون: ${it.color || '---'} | ${it.size || '---'} | كمية: ${it.quantity || 1}</div>
+              <div style="font-size: 14px; margin-top: 4px;">
+                السعر: ${(it.price || 0).toFixed(2)} د.ل
+                ${it.commission ? ` | عمولة القطعة: ${(it.commission || 0).toFixed(2)} د.ل` : ''}
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      
+      <hr style="margin: 15px 0;">
+      
+      <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <h4 style="color: #92400e; margin-bottom: 10px;">💰 تفاصيل الدفع</h4>
+        <p><strong>إجمالي المنتجات:</strong> ${itemsBaseTotal.toFixed(2)} د.ل</p>
+        <p><strong>عمولتك (الصافي):</strong> ${commissionNetTotal.toFixed(2)} د.ل</p>
+        <p><strong>إجمالي العمولة المضافة:</strong> ${itemsGrossCommissionTotal.toFixed(2)} د.ل</p>
+        <p><strong>مصاريف الشحن:</strong> ${shippingCost.toFixed(2)} د.ل</p>
+        <p><strong>الإجمالي النهائي (على الزبون):</strong> <strong style="color: #4b6b2f; font-size: 18px;">${order.total.toFixed(2)} د.ل</strong></p>
+      </div>
+      
+      <div style="background: #e0f2fe; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <h4 style="color: #0369a1; margin-bottom: 10px;">📊 حالة الطلب</h4>
+        <p><strong>الحالة الحالية:</strong> <span class="${statusClass(order.status)}">${order.status || 'قيد الانتظار'}</span></p>
+        ${order.status === 'ملغي' || order.status === 'مرفوض' ? 
+          `<p style="margin-top: 8px;"><strong>سبب الإلغاء:</strong> <span style="color: #dc2626;">${order.cancellation_reason || 'غير محدد'}</span></p>` : 
+          order.status === 'مرتجع' ? 
+          `<p style="margin-top: 8px;"><strong>سبب الإرجاع:</strong> <span style="color: #f59e0b;">${order.return_reason || 'غير محدد'}</span></p>` :
+          ''
+        }
+      </div>
+      
+      <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+        <small>💡 ملاحظة: يمكن للمسؤول تغيير حالة الطلب من لوحة التحكم</small>
+      </div>
+    </div>
+  `;
+
+  statusModal.classList.remove('hidden');
+}
+
+// إغلاق المودال
+closeStatusModal.addEventListener('click', ()=> statusModal.classList.add('hidden'));
+closeStatusBtn.addEventListener('click', ()=> statusModal.classList.add('hidden'));
+
+// تحديث المتغيرات بعد أي تغيير خارجي
+window.addEventListener('focus', loadOrders);
+
+// تحديث تلقائي عند فتح الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+  loadOrders();
+  // محاولة المزامنة التلقائية عند فتح الصفحة
+  setTimeout(syncOrders, 1000);
+});
+
+// إغلاق المودال عند النقر خارج المحتوى
+statusModal.addEventListener('click', (e) => {
+  if (e.target === statusModal) {
+    statusModal.classList.add('hidden');
+  }
+});
+
+// =============== نظام عرض تعليقات الإدارة ===============
+function showOrderComments(orderId) {
+  document.getElementById('commentsOrderId').textContent = orderId;
+  document.getElementById('commentsViewModal').classList.remove('hidden');
+  
+  const container = document.getElementById('commentsViewContent');
+  container.innerHTML = `
+    <div style="text-align: center; color: #6b7280; padding: 30px;">
+      <i class='bx bx-loader-alt bx-spin' style="font-size: 2rem;"></i>
+      <p>جاري تحميل التعليقات...</p>
+    </div>
+  `;
+  
+  fetch('get_order_comments.php?order_id=' + orderId)
+    .then(response => response.json())
+    .then(data => {
+      if (data.success && data.comments.length > 0) {
+        container.innerHTML = data.comments.map(comment => `
+          <div style="background: #f8f9fa; border-right: 4px solid #9333ea; padding: 15px; margin-bottom: 10px; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span style="font-weight: bold; color: #9333ea;">
+                <i class='bx bx-user-circle'></i>
+                ${comment.admin_name}
+              </span>
+              <span style="color: #6b7280; font-size: 12px;">${comment.formatted_date}</span>
+            </div>
+            <p style="color: #1f2937; margin: 0;">${comment.comment}</p>
+          </div>
+        `).join('');
+      } else {
+        container.innerHTML = `
+          <div style="text-align: center; color: #9ca3af; padding: 40px;">
+            <i class='bx bx-comment-x' style="font-size: 3rem; display: block; margin-bottom: 10px;"></i>
+            <p>لا توجد تعليقات من الإدارة على هذا الطلب</p>
+          </div>
+        `;
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      container.innerHTML = `
+        <div style="text-align: center; color: #dc2626; padding: 40px;">
+          <i class='bx bx-error-circle' style="font-size: 3rem; display: block; margin-bottom: 10px;"></i>
+          <p>فشل في تحميل التعليقات</p>
+        </div>
+      `;
+    });
+}
+
+function closeCommentsViewModal() {
+  document.getElementById('commentsViewModal').classList.add('hidden');
+}
+
+// إغلاق modal التعليقات عند النقر خارجها
+document.getElementById('commentsViewModal').addEventListener('click', (e) => {
+  if (e.target.id === 'commentsViewModal') {
+    closeCommentsViewModal();
+  }
+});
+
+</script>
+
+</body>
+</html>

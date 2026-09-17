@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>لوحة التاجر</title>
+    <?php include __DIR__ . '/favicon_tags.php'; ?>
+  <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+</head>
+<body>
+
+  <!-- ========================= Navbar ========================= -->
+  <nav>
+    <div class="logo-text">لوحة التاجر </div>
+    <div class="nav-links">
+      <a href="home111.php">الرئيسية</a>
+      <a href="products1.html">المنتجات</a>
+      <a href="orders1.html">الطلبات</a>
+
+      <a href="withdrawing.html">السحب</a>
+      <a href="#">الإعدادات</a>
+    </div>
+  </nav>
+
+  <!-- ========================= Dashboard Cards ========================= -->
+  <section class="dashboard">
+    <h1>الإحصائيات المالية</h1>
+
+    <div class="cards">
+      <div class="card">
+        <div class="icon"><i class='bx bx-wallet'></i></div>
+        <h3>إجمالي الأرباح</h3>
+        <p>2300د.ل</p>
+      </div>
+
+      <div class="card">
+        <div class="icon"><i class='bx bx-trending-up'></i></div>
+        <h3>الأرباح المتوقعة</h3>
+        <p>2300د.ل</p>
+      </div>
+
+      <div class="card">
+        <div class="icon"><i class='bx bx-money'></i></div>
+        <h3>تم السحب</h3>
+        <p>2300د.ل</p>
+      </div>
+
+      <div class="card">
+        <div class="icon"><i class='bx bx-time'></i></div>
+        <h3>طلبات معلقة</h3>
+        <p>2 طلب</p>
+      </div>
+
+      <div class="card">
+        <div class="icon"><i class='bx bx-check-circle'></i></div>
+        <h3>متاح للسحب</h3>
+        <p>2300د.ل</p>
+      </div>
+    </div>
+  </section>
+
+<!-- ========================= Product Stats ========================= -->
+<section class="product-stats">
+  <h1>إحصائيات المنتجات</h1>
+
+  <div class="product-cards">
+    <div class="product-card">
+      <div class="icon"><i class='bx bx-package'></i></div>
+      <h3>عدد المنتجات</h3>
+      <p>0</p>
+    </div>
+
+    <div class="product-card">
+      <div class="icon"><i class='bx bx-cart'></i></div>
+      <h3>عدد الطلبات</h3>
+      <p>0</p>
+    </div>
+  </div>
+</section>
+<!-- ========================= Order Status ========================= -->
+<section class="order-status">
+  <h1>حالات الطلبات</h1>
+
+  <div class="status-cards">
+    <div class="status-card returned">
+      <div class="icon"><i class='bx bx-rotate-left'></i></div>
+      <h3>مرتجع</h3>
+      <p>0</p>
+    </div>
+
+    <div class="status-card canceled">
+      <div class="icon"><i class='bx bx-x-circle'></i></div>
+      <h3>ملغي</h3>
+      <p>0</p>
+    </div>
+
+    <div class="status-card collected">
+      <div class="icon"><i class='bx bx-check-circle'></i></div>
+      <h3>محصل</h3>
+      <p>0</p>
+    </div>
+  </div>
+</section>
+<!-- ========================= Performance Stats ========================= -->
+<section class="performance-stats">
+  <h1>نسب الأداء</h1>
+
+  <div class="performance-cards">
+    <div class="performance-card calls">
+      <div class="icon"><i class='bx bx-phone-call'></i></div>
+      <h3>نسبة التسليمات</h3>
+      <p>0%</p>
+    </div>
+
+    <div class="performance-card confirmations">
+      <div class="icon"><i class='bx bx-check-square'></i></div>
+      <h3>نسبة التأكيدات</h3>
+      <p>0%</p>
+    </div>
+  </div>
+</section>
+
+ <!-- Footer -->
+  <footer>
+    <div class="social-links">
+      <a href="https://facebook.com" target="_blank"><i class='bx bxl-facebook-circle'></i></a>
+      <a href="https://instagram.com" target="_blank"><i class='bx bxl-instagram'></i></a>
+      <a href="https://tiktok.com" target="_blank"><i class='bx bxl-tiktok'></i></a>
+      <a href="https://t.me" target="_blank"><i class='bx bxl-telegram'></i></a>
+    </div>
+    <p>© جميع الحقوق محفوظة</p>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auth2 Login</title>
+    <link rel="icon" type="image/png" href="brand_logo.php?f=logo">
+    <link rel="shortcut icon" type="image/png" href="brand_logo.php?f=favicon">
+    <link rel="apple-touch-icon" href="brand_logo.php?f=logo">
+</head>
+<body>
+  <h2>Login</h2>
+  <form id="f">
+    <input name="identifier" placeholder="Email/Username" required><br><br>
+    <input name="password" type="password" placeholder="Password" required><br><br>
+    <button type="submit">Login</button>
+  </form>
+  <img id="qr" alt="2FA QR" style="max-width:250px;display:none;">
+  <pre id="result"></pre>
+
+  <script>
+    const form = document.getElementById('f');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = Object.fromEntries(new FormData(form).entries());
+      const res = await fetch('auth2_login_api.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+      if (data.twofa && data.twofa.qr_url) {
+        const qr = document.getElementById('qr');
+        qr.onerror = () => {
+          if (data.twofa.otpauth_url) {
+            qr.src = 'https://quickchart.io/qr?size=250&text=' + encodeURIComponent(data.twofa.otpauth_url);
+          }
+        };
+        qr.src = data.twofa.qr_url;
+        qr.style.display = 'block';
+      }
+      if (data.temp_login_token) {
+        localStorage.setItem('auth2_temp_token', data.temp_login_token);
+        if (data.pending_user && data.pending_user.email) {
+          localStorage.setItem('auth2_pending_email', data.pending_user.email);
+        }
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,139 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Cairo", sans-serif;
+}
+
+body {
+  height: 100vh;
+  background-color: #f8f9fa; /* خلفية off-white */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* الصندوق في المنتصف */
+.center-box {
+  width: 400px;
+  background-color: rgba(0, 0, 0, 0.03); /* نفس لون البوكس السابق */
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+select {
+  width: 100%;
+  margin: 8px 0;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  outline: none;
+  font-size: 14px;
+}
+
+
+/* عنوان الصفحة + الأيقونة */
+.title-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  color: #0f172a;
+  margin-bottom: 15px;
+}
+
+.title-icon i {
+  font-size: 26px;
+  color: #2563eb;
+}
+
+.title-icon h1 {
+  font-size: 26px;
+  font-weight: bold;
+  color: #0f172a;
+}
+
+.center-box p {
+  color: #475569;
+  margin-bottom: 25px;
+}
+
+/* الفورم */
+form {
+  text-align: right;
+}
+
+label {
+  display: block;
+  margin: 15px 0 5px;
+  font-weight: bold;
+  color: #0f172a;
+}
+
+input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-size: 16px;
+  outline: none;
+  transition: 0.2s;
+}
+
+input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 5px rgba(37, 99, 235, 0.4);
+}
+
+.note {
+  display: block;
+  font-size: 13px;
+  color: #facc15;
+  margin-top: 4px;
+}
+
+button {
+  width: 100%;
+  padding: 14px;
+  margin-top: 25px;
+  background: linear-gradient(90deg, #2563eb, #1e3a8a);
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+button:hover {
+  background: linear-gradient(90deg, #1e3a8a, #2563eb);
+}
+
+.forgot {
+  display: inline-block;
+  margin-top: 10px;
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.forgot:hover {
+  text-decoration: underline;
+}
+
+.create {
+  margin-top: 20px;
+  text-align: center;
+  color: #475569;
+}
+
+.create a {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.create a:hover {
+  text-decoration: underline;
+}

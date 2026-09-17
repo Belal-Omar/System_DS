@@ -1,0 +1,403 @@
+/* =========================
+   RESET + BODY
+========================= */
+body {
+  font-family: "Cairo", sans-serif;
+  background: linear-gradient(135deg, #f8fafc, #eef2f3);
+  margin: 0;
+  padding: 0;
+  color: #1f2937;
+  overflow-x: hidden;
+}
+
+/* =========================
+   NAVBAR
+========================= */
+nav {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 72rem;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+  border-radius: 1rem;
+  z-index: 100;
+  padding: 0.75rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  animation: fadeDown 0.8s ease-out;
+}
+
+.logo-text {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #4b6b2f;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+}
+
+.logo-text:hover {
+  color: #0a0a0a;
+  transform: scale(1.15);
+}
+
+.nav-links a {
+  position: relative;
+  font-weight: 600;
+  color: #1e293b;
+  text-decoration: none;
+  margin-left: 1.2rem;
+  font-size: 1.2rem;
+  transition: all 0.3s ease;
+}
+
+.nav-links a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -3px;
+  width: 100%;
+  height: 2px;
+  background-color: #4b6b2f;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.3s ease;
+}
+
+.nav-links a:hover::after {
+  transform: scaleX(1);
+}
+
+/* =========================
+   DASHBOARD
+========================= */
+.dashboard {
+  margin-top: 8rem;
+  text-align: center;
+}
+
+.dashboard h1 {
+  font-size: 2.4rem;
+  font-weight: 900;
+  color: #1e3a1e;
+  margin-bottom: 2rem;
+  animation: fadeUp 1s forwards 0.2s;
+}
+
+/* Cards */
+.cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2rem;
+  width: 90%;
+  max-width: 75rem;
+  margin: 0 auto;
+  opacity: 0;
+  animation: spreadOut 1.6s ease forwards;
+}
+
+.card {
+  border-radius: 1.2rem;
+  padding: 2rem 1.5rem;
+  min-width: 240px;
+  flex: 1 1 260px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(75, 107, 47, 0.05));
+  box-shadow: 0 3px 14px rgba(75, 107, 47, 0.15);
+  text-align: center;
+  transition: all 0.4s ease;
+  transform: scale(0.9);
+  opacity: 0;
+  animation: fadeCard 1s forwards;
+  border: 1px solid rgba(75, 107, 47, 0.1);
+}
+
+.card:hover {
+  transform: translateY(-6px) scale(1.05);
+  background: linear-gradient(135deg, rgba(75, 107, 47, 0.2), #ffffff);
+  box-shadow: 0 8px 22px rgba(43, 68, 27, 0.25);
+}
+
+.card h3 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #2b441b;
+  margin-bottom: 0.4rem;
+}
+
+.card p {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #374151;
+}
+/* =========================
+   CARD ICONS
+========================= */
+.card .icon {
+  font-size: 2.5rem; /* حجم الأيقونة */
+  color: #4b6b2f;    /* لون أخضر متناسق مع التصميم */
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+}
+
+.card:hover .icon {
+  color: #9ae6b4;   /* لون عند hover */
+  transform: scale(1.3) rotate(10deg); /* تكبير وتحريك خفيف */
+}
+/* =========================
+   PRODUCT STATS
+========================= */
+.product-stats {
+  margin: 5rem auto;
+  text-align: center;
+}
+
+.product-stats h1 {
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: #1e3a1e;
+  margin-bottom: 2rem;
+  animation: fadeUp 1s forwards 0.2s;
+}
+
+/* Product cards container */
+.product-cards {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2rem;
+  width: 90%;
+  max-width: 75rem;
+  margin: 0 auto;
+}
+
+/* Individual product card */
+.product-card {
+  border-radius: 1.2rem;
+  padding: 2rem 1.5rem;
+  min-width: 220px;
+  flex: 1 1 240px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(75, 107, 47, 0.05));
+  box-shadow: 0 3px 14px rgba(75, 107, 47, 0.15);
+  text-align: center;
+  transition: all 0.4s ease;
+}
+
+.product-card:hover {
+  transform: translateY(-6px) scale(1.05);
+  background: linear-gradient(135deg, rgba(75, 107, 47, 0.2), #ffffff);
+  box-shadow: 0 8px 22px rgba(43, 68, 27, 0.25);
+}
+
+/* Icon style */
+.product-card .icon {
+  font-size: 2.5rem;
+  color: #4b6b2f;
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+}
+
+.product-card:hover .icon {
+  color: #9ae6b4;
+  transform: scale(1.3) rotate(10deg);
+}
+
+.product-card h3 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #2b441b;
+  margin-bottom: 0.4rem;
+}
+
+.product-card p {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #374151;
+}
+/* =========================
+   ORDER STATUS
+========================= */
+.order-status {
+  margin: 5rem auto;
+  text-align: center;
+}
+
+.order-status h1 {
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: #1e3a1e;
+  margin-bottom: 2rem;
+  animation: fadeUp 1s forwards 0.2s;
+}
+
+/* Status cards container */
+.status-cards {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2rem;
+  width: 90%;
+  max-width: 75rem;
+  margin: 0 auto;
+}
+
+/* Individual status card */
+.status-card {
+  border-radius: 1.2rem;
+  padding: 2rem 1.5rem;
+  min-width: 200px;
+  flex: 1 1 220px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.08);
+  text-align: center;
+}
+
+/* Colors for each status */
+.status-card.returned {
+  background-color: #d1d5db; /* رمادي */
+}
+
+.status-card.canceled {
+  background-color: #fca5a5; /* أحمر فاتح */
+}
+
+.status-card.collected {
+  background-color: #a7f3d0; /* أخضر فاتح */
+}
+
+/* Icon style */
+.status-card .icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  color: #1f2937;
+}
+
+.status-card h3 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin-bottom: 0.4rem;
+  color: #1e3a1e;
+}
+
+.status-card p {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #374151;
+}
+/* =========================
+   PERFORMANCE STATS
+========================= */
+.performance-stats {
+  margin: 5rem auto;
+  text-align: center;
+}
+
+.performance-stats h1 {
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: #1e3a1e;
+  margin-bottom: 2rem;
+  animation: fadeUp 1s forwards 0.2s;
+}
+
+/* Performance cards container */
+.performance-cards {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2rem;
+  width: 90%;
+  max-width: 75rem;
+  margin: 0 auto;
+}
+
+/* Individual performance card */
+.performance-card {
+  border-radius: 1.5rem;
+  padding: 2rem 1.5rem;
+  min-width: 220px;
+  flex: 1 1 240px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(75, 107, 47, 0.05));
+  box-shadow: 0 3px 14px rgba(75, 107, 47, 0.15);
+  text-align: center;
+}
+
+/* Icons */
+.performance-card .icon {
+  font-size: 2.5rem;
+  color: #1e3a1e; /* لون أساسي */
+  margin-bottom: 1rem;
+}
+
+/* Card titles */
+.performance-card h3 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #1e3a1e;
+  margin-bottom: 0.4rem;
+}
+
+/* Card values */
+.performance-card p {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1e3a1e;
+}
+
+
+/* =========================
+   FOOTER
+========================= */
+footer {
+  margin-top: 5rem;
+  background-color: #111827;
+  color: white;
+  padding: 1.5rem 0;
+  text-align: center;
+  border-top-left-radius: 1rem;
+  border-top-right-radius: 1rem;
+}
+
+footer .social-links {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  font-size: 1.5rem;
+}
+
+footer .social-links a {
+  color: white;
+  text-decoration: none;
+  transition: all 0.3s;
+}
+
+footer .social-links a:hover {
+  color: #9ae6b4;
+}
+
+/* =========================
+   ANIMATIONS
+========================= */
+@keyframes fadeDown {
+  from { opacity: 0; transform: translate(-50%, -20px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeCard {
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes spreadOut {
+  0% { transform: scale(0.5) translateY(100px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}

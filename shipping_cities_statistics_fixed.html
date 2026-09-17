@@ -1,0 +1,265 @@
+<?php 
+session_start();
+include("config.php");
+
+// Check login
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.html");
+    exit;
+}
+
+$user_id = $_SESSION['user_id'];
+$user = null;
+
+if ($user_id) {
+    $user_id = (int)$user_id;
+    $user_query = $conn->query("SELECT * FROM users WHERE id = $user_id");
+    if ($user_query) {
+        $user = $user_query->fetch_assoc();
+    }
+}
+
+// Prevent merchants from accessing marketer pages
+if ($user && ($user['user_type'] ?? '') == 'tajar') {
+    header("Location: home111.php");
+    exit;
+}
+
+// Initialize arrays
+$cities = [];
+$summary = ['cities_with_orders' => 0, 'total_orders' => 0, 'total_revenue' => 0];
+
+try {
+    // Get user type
+    $user_type = strtolower($user['user_type'] ?? 'marketer');
+    
+    // Get cities statistics for this user only
+    if ($user_type == 'merchant' || $user_type == 'tajar' || $user_type == 'tejar') {
+        // For merchants: only their own products
+        $query = "SELECT 
+            sc.city_name,
+            sc.shipping_cost,
+            COUNT(DISTINCT o.id) as total_orders,
+            COUNT(DISTINCT CASE WHEN o.status IN ('completed', 'completed', 'completed') THEN o.id END) as completed_orders,
+            SUM(o.total) as total_revenue,
+            SUM(o.commission_total) as total_commission
+            FROM shipping_cities sc
+            INNER JOIN orders o ON sc.id = o.shipping_city_id
+            INNER JOIN order_items oi ON o.id = oi.order_id
+            INNER JOIN products p ON oi.product_id = p.id
+            WHERE sc.is_active = 1 
+            AND o.user_id = $user_id 
+            AND p.user_id = $user_id
+            AND p.status = 'active'
+            GROUP BY sc.id, sc.city_name, sc.shipping_cost
+            ORDER BY total_orders DESC";
+            
+        $summary_query = "SELECT 
+            COUNT(DISTINCT o.shipping_city_id) as cities_with_orders,
+            COUNT(DISTINCT o.id) as total_orders,
+            SUM(o.total) as total_revenue
+            FROM orders o
+            INNER JOIN order_items oi ON o.id = oi.order_id
+            INNER JOIN products p ON oi.product_id = p.id
+            WHERE o.user_id = $user_id 
+            AND p.user_id = $user_id
+            AND p.status = 'active'";
+    } else {
+        // For marketers: only their own orders
+        $query = "SELECT 
+            sc.city_name,
+            sc.shipping_cost,
+            COUNT(o.id) as total_orders,
+            COUNT(CASE WHEN o.status IN ('completed', 'completed', 'completed') THEN 1 END) as completed_orders,
+            SUM(o.total) as total_revenue,
+            SUM(o.commission_total) as total_commission
+            FROM shipping_cities sc
+            INNER JOIN orders o ON sc.id = o.shipping_city_id
+            WHERE sc.is_active = 1 
+            AND o.user_id = $user_id
+            GROUP BY sc.id, sc.city_name, sc.shipping_cost
+            ORDER BY total_orders DESC";
+            
+        $summary_query = "SELECT 
+            COUNT(DISTINCT o.shipping_city_id) as cities_with_orders,
+            COUNT(o.id) as total_orders,
+            SUM(o.total) as total_revenue
+            FROM orders o 
+            WHERE o.user_id = $user_id";
+    }
+    
+    $result = mysqli_query($conn, $query);
+    
+    if ($result) {
+        while ($row = mysqli_fetch_assoc($result)) {
+            $cities[] = $row;
+        }
+    }
+    
+    $summary_result = mysqli_query($conn, $summary_query);
+    if ($summary_result && mysqli_num_rows($summary_result) > 0) {
+        $summary = mysqli_fetch_assoc($summary_result);
+    }
+    
+} catch (Exception $e) {
+    // If there's an error, show empty data
+    $cities = [];
+    $summary = ['cities_with_orders' => 0, 'total_orders' => 0, 'total_revenue' => 0];
+}
+
+// Get user data for navbar
+$user_name = $user['fullname'] ?? '';
+
+// Get current page
+$current_page = basename($_SERVER['PHP_SELF'] ?? $_SERVER['SCRIPT_NAME'] ?? 'index.php');
+$current_page = str_replace(['.php', '.html'], '', $current_page);
+?>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>City Shipping Statistics</title>
+    <link rel="icon" type="image/png" href="brand_logo.php?f=logo">
+    <link rel="shortcut icon" type="image/png" href="brand_logo.php?f=favicon">
+    <link rel="apple-touch-icon" href="brand_logo.php?f=logo">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: #f8fafc;
+      font-family: 'Cairo', sans-serif;
+      color: #1f2937;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .table th, .table td {
+      padding: 12px;
+      text-align: right;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .table th {
+      background: #f8f9fa;
+      font-weight: 600;
+    }
+    .navbar {
+      background: white;
+      padding: 15px 0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+    .navbar-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .nav-links {
+      display: flex;
+      gap: 20px;
+    }
+    .nav-link {
+      color: #4b6b2f;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .nav-link:hover {
+      text-decoration: underline;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-content">
+      <div class="nav-links">
+        <a href="home.php" class="nav-link">Home</a>
+        <a href="products.php" class="nav-link">Products</a>
+        <a href="orders.php" class="nav-link">Orders</a>
+        <a href="shipping_cities_statistics_fixed.html" class="nav-link">City Statistics</a>
+        <a href="withdrawals.php" class="nav-link">Withdrawals</a>
+      </div>
+      <div>
+        <span>Welcome, <?php echo htmlspecialchars($user_name); ?></span>
+        <a href="logout.php" style="margin-right: 15px; color: red;">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <h1 style="text-align: center; margin-bottom: 30px;">City Shipping Statistics</h1>
+    
+    <!-- Summary Stats -->
+    <div class="grid" style="margin-bottom: 30px;">
+      <div class="stat-card">
+        <h3 style="color: #3b82f6; margin-bottom: 10px;">Cities with Orders</h3>
+        <p style="font-size: 2rem; font-weight: bold;"><?php echo $summary['cities_with_orders']; ?></p>
+      </div>
+      <div class="stat-card">
+        <h3 style="color: #10b981; margin-bottom: 10px;">Total Orders</h3>
+        <p style="font-size: 2rem; font-weight: bold;"><?php echo $summary['total_orders']; ?></p>
+      </div>
+      <div class="stat-card">
+        <h3 style="color: #f59e0b; margin-bottom: 10px;">Total Revenue</h3>
+        <p style="font-size: 2rem; font-weight: bold;"><?php echo number_format($summary['total_revenue'], 2); ?> LYD</p>
+      </div>
+    </div>
+    
+    <!-- Cities Table -->
+    <div class="stat-card">
+      <h2 style="margin-bottom: 20px;">Cities Details</h2>
+      <?php if (!empty($cities)): ?>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>City Name</th>
+              <th>Shipping Cost</th>
+              <th>Total Orders</th>
+              <th>Completed Orders</th>
+              <th>Revenue</th>
+              <th>Commission</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach ($cities as $city): ?>
+            <tr>
+              <td><?php echo htmlspecialchars($city['city_name']); ?></td>
+              <td><?php echo $city['shipping_cost']; ?> LYD</td>
+              <td><?php echo $city['total_orders']; ?></td>
+              <td><?php echo $city['completed_orders']; ?></td>
+              <td><?php echo number_format($city['total_revenue'], 2); ?> LYD</td>
+              <td><?php echo number_format($city['total_commission'], 2); ?> LYD</td>
+            </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      <?php else: ?>
+        <p style="text-align: center; color: #6b7280;">No orders found</p>
+      <?php endif; ?>
+    </div>
+  </div>
+</body>
+</html>

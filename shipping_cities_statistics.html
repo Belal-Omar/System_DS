@@ -1,0 +1,1315 @@
+<?php 
+session_start();
+include("config.php");
+
+// Check login
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.html");
+    exit;
+}
+
+$user_id = $_SESSION['user_id'];
+$user = null;
+
+if ($user_id) {
+    $user_id = (int)$user_id;
+    $user_query = $conn->query("SELECT * FROM users WHERE id = $user_id");
+    if ($user_query) {
+        $user = $user_query->fetch_assoc();
+    }
+}
+
+// Initialize arrays
+$cities = [];
+$summary = ['cities_with_orders' => 0, 'total_orders' => 0, 'total_revenue' => 0];
+
+try {
+    $user_type = trim((string)($user['user_type'] ?? ''));
+    $is_merchant = in_array($user_type, ['تاجر', 'tajar', 'merchant'], true);
+
+    if ($is_merchant) {
+        // Merchant stats: only the value of this merchant's items in each order.
+        $orders_scope_query = "
+            SELECT
+                o.id,
+                o.shipping_city_id,
+                o.status,
+                o.user_id,
+                COALESCE(SUM(oi.quantity * oi.price), 0) as order_value
+            FROM orders o
+            INNER JOIN order_items oi ON oi.order_id = o.id
+            INNER JOIN products p ON p.id = oi.product_id
+            WHERE p.user_id = $user_id
+            GROUP BY o.id, o.shipping_city_id, o.status, o.user_id
+        ";
+    } else {
+        // Marketer stats are based on his own orders.
+        $orders_scope_query = "
+            SELECT
+                o.id,
+                o.shipping_city_id,
+                o.status,
+                o.user_id,
+                o.total as order_value
+            FROM orders o
+            WHERE o.user_id = $user_id
+        ";
+    }
+
+    $query = "SELECT
+        sc.city_name,
+        sc.shipping_cost,
+        COUNT(os.id) as total_orders,
+        COUNT(CASE WHEN os.status IN ('تم التوصيل', 'محصل', 'مكتمل', 'completed') THEN 1 END) as completed_orders,
+        COUNT(CASE WHEN os.status IN ('ملغي', 'مرفوض', 'cancelled', 'rejected') THEN 1 END) as cancelled_orders,
+        COUNT(CASE WHEN os.status IN ('مرتجع', 'returned') THEN 1 END) as returned_orders,
+        COALESCE(SUM(CASE WHEN os.status IN ('تم التوصيل', 'محصل', 'مكتمل', 'completed') THEN os.order_value ELSE 0 END), 0) as total_revenue,
+        COUNT(DISTINCT os.user_id) as unique_users
+        FROM shipping_cities sc
+        INNER JOIN ($orders_scope_query) os ON sc.id = os.shipping_city_id
+        WHERE sc.is_active = 1
+        GROUP BY sc.id, sc.city_name, sc.shipping_cost
+        ORDER BY total_orders DESC";
+
+    $summary_query = "SELECT
+        COUNT(DISTINCT os.shipping_city_id) as cities_with_orders,
+        COUNT(os.id) as total_orders,
+        COALESCE(SUM(CASE WHEN os.status IN ('تم التوصيل', 'محصل', 'مكتمل', 'completed') THEN os.order_value ELSE 0 END), 0) as total_revenue
+        FROM ($orders_scope_query) os";
+    
+    $result = mysqli_query($conn, $query);
+    
+    if ($result) {
+        while ($row = mysqli_fetch_assoc($result)) {
+            $cities[] = $row;
+        }
+    }
+    
+    $summary_result = mysqli_query($conn, $summary_query);
+    if ($summary_result && mysqli_num_rows($summary_result) > 0) {
+        $summary = mysqli_fetch_assoc($summary_result);
+    }
+    
+} catch (Exception $e) {
+    // If there's an error, show empty data
+    $cities = [];
+    $summary = ['cities_with_orders' => 0, 'total_orders' => 0, 'total_revenue' => 0];
+}
+
+$cities_json = json_encode($cities, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+$summary_json = json_encode($summary, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+
+// جلب بيانات المستخدم للـ navbar
+$user_name = '';
+if ($user_id && $user) {
+    $user_name = $user['fullname'] ?? '';
+}
+
+// الحصول على الصفحة الحالية
+$current_page = basename($_SERVER['PHP_SELF'] ?? $_SERVER['SCRIPT_NAME'] ?? 'index.php');
+$current_page = str_replace(['.php', '.html'], '', $current_page);
+?>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>إحصائيات مدن الشحن</title>
+    <?php include __DIR__ . '/favicon_tags.php'; ?>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* FORCE OVERRIDE - MUST BE FIRST */
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      max-width: 100vw !important;
+      min-width: 100% !important;
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      box-sizing: border-box !important;
+      position: relative !important;
+    }
+    * {
+      box-sizing: border-box !important;
+      max-width: 100% !important;
+    }
+    body > * {
+      max-width: 100% !important;
+    }
+    .container, .container-fluid, .row, .col, [class*="col-"] {
+      max-width: 100% !important;
+      overflow-x: hidden !important;
+    }
+    table {
+      max-width: 100% !important;
+      table-layout: fixed !important;
+    }
+    img, video, iframe {
+      max-width: 100% !important;
+      height: auto !important;
+    }
+    /* Chart.js specific fixes */
+    .chart-container, .chart-wrapper, .chart-box {
+      max-width: 100% !important;
+      overflow: hidden !important;
+      position: relative !important;
+    }
+    .chart-container canvas, .chart-wrapper canvas, .chart-box canvas {
+      max-width: 100% !important;
+      height: auto !important;
+      max-height: 400px !important;
+    }
+    .chartjs-render-monitor {
+      max-width: 100% !important;
+      overflow: hidden !important;
+    }
+    body {
+      background: #f8fafc;
+      font-family: 'Cairo', sans-serif;
+      color: #1f2937;
+    }
+    .main-navbar {
+      position: fixed;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 72rem;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+      border-radius: 1rem;
+      z-index: 1000;
+      padding: 0.8rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .main-navbar.hidden {
+      transform: translateX(-50%) translateY(-150%);
+      opacity: 0;
+    }
+    .navbar-logo {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #4b6b2f;
+      letter-spacing: 1px;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .navbar-logo i {
+      font-size: 1.5rem;
+    }
+    .navbar-logo:hover {
+      color: #3a5524;
+      transform: scale(1.03);
+    }
+    .navbar-links {
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+    }
+    .navbar-link {
+      font-weight: 600;
+      color: #1e293b;
+      text-decoration: none;
+      font-size: 1.1rem;
+      transition: all 0.3s ease;
+      position: relative;
+      padding: 0.5rem 0;
+    }
+    .navbar-link.active {
+      color: #4b6b2f;
+      font-weight: 700;
+    }
+    .navbar-link.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background-color: #4b6b2f;
+      border-radius: 3px;
+      animation: slideIn 0.3s ease;
+    }
+    .navbar-link:hover {
+      color: #4b6b2f;
+      transform: translateY(-2px);
+    }
+    .navbar-link:hover::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background-color: #4b6b2f;
+      border-radius: 3px;
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+      from { width: 0; opacity: 0; }
+      to { width: 100%; opacity: 1; }
+    }
+    .navbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+    }
+    .navbar-cart {
+      position: relative;
+      color: #4b6b2f;
+      font-size: 1.5rem;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+    }
+    .navbar-cart:hover {
+      background-color: rgba(75, 107, 47, 0.1);
+      transform: translateY(-2px);
+    }
+    .navbar-cart .cart-count {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      background: #ef4444;
+      color: white;
+      font-size: 0.7rem;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      border: 2px solid white;
+    }
+    .navbar-btn {
+      padding: 0.6rem 1.4rem;
+      border-radius: 0.6rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      font-size: 1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .navbar-btn i {
+      font-size: 1.1rem;
+    }
+    .navbar-btn-login {
+      color: #4b6b2f;
+      border: 2px solid #4b6b2f;
+    }
+    .navbar-btn-login:hover {
+      background-color: rgba(75, 107, 47, 0.1);
+      transform: translateY(-2px);
+    }
+    .navbar-btn-register {
+      background-color: #4b6b2f;
+      color: white;
+    }
+    .navbar-btn-register:hover {
+      background-color: #3a5524;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(75, 107, 47, 0.2);
+    }
+    .navbar-btn-logout {
+      background-color: #ef4444;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .navbar-btn-logout:hover {
+      background-color: #dc2626;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    }
+    .navbar-user {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      color: #4b6b2f;
+      text-decoration: none;
+      font-weight: 600;
+      padding: 0.5rem 1rem;
+      border-radius: 0.6rem;
+      transition: all 0.3s ease;
+    }
+    .navbar-user:hover {
+      background-color: rgba(75, 107, 47, 0.1);
+      transform: translateY(-2px);
+    }
+    .navbar-user i {
+      font-size: 1.4rem;
+    }
+    .hidden {
+      transform: translate(-50%, -150%) !important;
+      opacity: 0;
+      pointer-events: none;
+    }
+    @media (max-width: 1024px) {
+      .main-navbar {
+        padding: 0.8rem 1.5rem;
+      }
+      .navbar-logo {
+        font-size: 1.6rem;
+      }
+      .navbar-links {
+        gap: 1.2rem;
+      }
+      .navbar-link {
+        font-size: 1rem;
+      }
+      .navbar-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+      }
+    }
+    .page-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 120px 2rem 2rem;
+      width: 100%;
+      box-sizing: border-box;
+      overflow-x: hidden;
+    }
+    .page-title {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: #1f2937;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: white;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .city-card {
+      background: white;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+      border-left: 4px solid #4b6b2f;
+    }
+    .city-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .chart-container {
+      background: white;
+      border-radius: 1rem;
+      padding: 2rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    .progress-bar {
+      background: #e5e7eb;
+      border-radius: 0.5rem;
+      height: 0.5rem;
+      overflow: hidden;
+    }
+    .progress-fill {
+      background: #4b6b2f;
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+    .status-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .status-completed {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .status-cancelled {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    .status-returned {
+      background: #fed7aa;
+      color: #c2410c;
+    }
+    .orders-table {
+      width: 100%;
+      border-collapse: collapse;
+      max-width: 100%;
+      table-layout: fixed;
+    }
+    .orders-table th {
+      background: #f8f9fa;
+      padding: 12px;
+      text-align: right;
+      font-weight: bold;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    .orders-table td {
+      padding: 12px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .orders-table tr:hover {
+      background: #f9fafb;
+    }
+    .mini-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .mini-item:last-child {
+      border-bottom: none;
+    }
+    .mini-item img {
+      width: 40px;
+      height: 40px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+    }
+    .mini-title {
+      font-weight: 600;
+      font-size: 14px;
+      color: #1f2937;
+    }
+    .mini-meta {
+      font-size: 12px;
+      color: #6b7280;
+    }
+    .refresh-btn {
+      background: #4b6b2f;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-left: 10px;
+    }
+    .refresh-btn:hover {
+      background: #3a5524;
+    }
+    .refresh-btn.loading {
+      background: #6b7280;
+      cursor: not-allowed;
+    }
+    .error-message {
+      background: #fee2e2;
+      color: #dc2626;
+      padding: 12px;
+      border-radius: 6px;
+      margin: 10px 0;
+      text-align: center;
+    }
+    .success-message {
+      background: #d1fae5;
+      color: #065f46;
+      padding: 12px;
+      border-radius: 6px;
+      margin: 10px 0;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="main-navbar" id="mainNavbar">
+    <div style="display: flex; align-items: center; gap: 2.5rem;">
+      <a href="Home1.html" class="navbar-logo">
+        <img src="brand_logo.php?f=logo" alt="Miskova Global" style="height: 42px; width: auto; object-fit: contain; border-radius: 6px;">
+        <span>لوحة المسوق</span>
+      </a>
+      <div class="navbar-links">
+        <a href="Home1.html" class="navbar-link <?php echo ($current_page == 'Home1' || $current_page == 'home') ? 'active' : ''; ?>">
+          <i class='bx bx-home-alt'></i>
+          الرئيسية
+        </a>
+        <a href="product.html" class="navbar-link <?php echo ($current_page == 'product') ? 'active' : ''; ?>">
+          <i class='bx bx-package'></i>
+          المنتجات
+        </a>
+        <a href="orders.html" class="navbar-link <?php echo ($current_page == 'orders') ? 'active' : ''; ?>">
+          <i class='bx bx-receipt'></i>
+          الطلبات
+        </a>
+        <a href="shipping_cities_statistics.html" class="navbar-link <?php echo ($current_page == 'shipping_cities_statistics') ? 'active' : ''; ?>">
+          <i class='bx bx-map-pin'></i>
+          إحصائيات المدن
+        </a>
+        <a href="withdrawals.php" class="navbar-link <?php echo ($current_page == 'withdrawals') ? 'active' : ''; ?>">
+          <i class='bx bx-money-withdraw'></i>
+          السحب
+        </a>
+        <a href="product_stats.php" class="navbar-link <?php echo ($current_page == 'product_stats') ? 'active' : ''; ?>">
+          <i class='bx bx-stats'></i>
+          إحصائيات المنتجات
+        </a>
+      </div>
+    </div>
+    <div class="navbar-actions">
+      <a href="cart.html" class="navbar-cart" title="سلة المشتريات">
+        <i class='bx bx-cart'></i>
+        <span class="cart-count">0</span>
+      </a>
+      
+      <?php if ($user_id && $user): ?>
+        <a href="profile_marketer.php" class="navbar-user">
+          <i class='bx bx-user-circle'></i>
+          <span class="hidden md:inline"><?php echo htmlspecialchars($user_name); ?></span>
+        </a>
+        <a href="logout.php" class="navbar-btn navbar-btn-logout">
+          <i class='bx bx-log-out'></i>
+          <span>تسجيل الخروج</span>
+        </a>
+      <?php else: ?>
+        <a href="login.html" class="navbar-btn navbar-btn-login">
+          <i class='bx bx-log-in-circle'></i>
+          <span>تسجيل الدخول</span>
+        </a>
+        <a href="register.html" class="navbar-btn navbar-btn-register">
+          <i class='bx bx-user-plus'></i>
+          <span>إنشاء حساب</span>
+        </a>
+      <?php endif; ?>
+    </div>
+  </nav>
+
+  <script>
+    // Navbar scroll behavior
+    let lastScroll = 0;
+    const navbar = document.getElementById('mainNavbar');
+    let isScrolling = false;
+    
+    function handleScroll() {
+      if (isScrolling) return;
+      
+      isScrolling = true;
+      
+      requestAnimationFrame(() => {
+        const currentScroll = window.pageYOffset;
+        
+        if (currentScroll <= 0) {
+          navbar.classList.remove('hidden');
+          navbar.style.transform = 'translateX(-50%)';
+          isScrolling = false;
+          return;
+        }
+        
+        if (currentScroll > lastScroll && currentScroll > 100) {
+          // Scrolling down
+          navbar.classList.add('hidden');
+        } else {
+          // Scrolling up
+          navbar.classList.remove('hidden');
+          navbar.style.transform = 'translateX(-50%)';
+        }
+        
+        lastScroll = currentScroll;
+        isScrolling = false;
+      });
+    }
+    
+    // Throttle scroll events for better performance
+    let scrollTimeout;
+    window.addEventListener('scroll', () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(handleScroll, 50);
+    }, { passive: true });
+    
+    // Cart count functionality
+    function updateCartCount() {
+      try {
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const cartCountEls = document.querySelectorAll('.cart-count');
+        const totalItems = cart.reduce((total, item) => total + (parseInt(item.quantity) || 0), 0);
+        
+        cartCountEls.forEach(el => {
+          el.textContent = totalItems;
+          // Add animation when cart count changes
+          if (parseInt(el.textContent) !== parseInt(el.dataset.lastCount || '0')) {
+            el.style.transform = 'scale(1.3)';
+            setTimeout(() => {
+              el.style.transform = 'scale(1)';
+            }, 200);
+          }
+          el.dataset.lastCount = totalItems;
+        });
+      } catch (e) {
+        console.error('Error updating cart count:', e);
+      }
+    }
+    
+    // Initialize cart count on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initial cart count update
+      updateCartCount();
+      
+      // Update cart count when storage changes (from other tabs/windows)
+      window.addEventListener('storage', updateCartCount);
+      
+      // Update cart count every second (to catch any changes from other tabs)
+      setInterval(updateCartCount, 1000);
+      
+      // Add click animation to cart icon
+      const cartIcon = document.querySelector('.navbar-cart');
+      if (cartIcon) {
+        cartIcon.addEventListener('click', function() {
+          this.style.transform = 'scale(0.9)';
+          setTimeout(() => {
+            this.style.transform = '';
+          }, 200);
+        });
+      }
+    });
+  </script>
+
+<main class="page-container">
+  <div class="mb-6 flex justify-between items-center">
+    <h1 class="text-3xl font-bold text-gray-800">إحصائيات مدن الشحن</h1>
+    <div class="flex gap-3">
+        <button class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors" onclick="exportToExcel()">
+            <i class="bx bx-download ml-2"></i>
+            تصدير Excel
+        </button>
+        <button class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors" onclick="syncCitiesStats()" id="refreshBtn">
+            <i class='bx bx-refresh ml-1'></i> تحديث الإحصائيات
+        </button>
+    </div>
+</div>
+
+<!-- رسائل التحديث -->
+<div id="messageContainer"></div>
+
+<div class="page-wrapper">
+
+<!-- إحصائيات عامة -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="stat-card p-6 border-l-4 border-l-blue-500">
+        <div class="flex items-center">
+            <div class="p-3 bg-blue-100 rounded-lg ml-4">
+                <i class='bx bx-map text-blue-600 text-2xl'></i>
+            </div>
+            <div>
+                <p class="text-gray-600">عدد المدن</p>
+                <h3 class="text-2xl font-bold text-gray-800" id="totalCities">0</h3>
+                <p class="text-sm text-gray-500 mt-1">مدينة نشطة</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="stat-card p-6 border-l-4 border-l-green-500">
+        <div class="flex items-center">
+            <div class="p-3 bg-green-100 rounded-lg ml-4">
+                <i class='bx bx-shopping-bag text-green-600 text-2xl'></i>
+            </div>
+            <div>
+                <p class="text-gray-600">إجمالي الطلبات</p>
+                <h3 class="text-2xl font-bold text-gray-800" id="totalOrders">0</h3>
+                <p class="text-sm text-gray-500 mt-1">من جميع المدن</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="stat-card p-6 border-l-4 border-l-yellow-500">
+        <div class="flex items-center">
+            <div class="p-3 bg-yellow-100 rounded-lg ml-4">
+                <i class='bx bx-money text-yellow-600 text-2xl'></i>
+            </div>
+            <div>
+                <p class="text-gray-600">إجمالي الإيرادات المكتملة</p>
+                <h3 class="text-2xl font-bold text-gray-800" id="totalRevenue">0 د.ل</h3>
+                <p class="text-sm text-gray-500 mt-1">المجموع فقط </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="stat-card p-6 border-l-4 border-l-purple-500">
+        <div class="flex items-center">
+            <div class="p-3 bg-purple-100 rounded-lg ml-4">
+                <i class='bx bx-trending-up text-purple-600 text-2xl'></i>
+            </div>
+            <div>
+                <p class="text-gray-600">متوسط قيمة الطلب المكتمل</p>
+                <h3 class="text-2xl font-bold text-gray-800" id="avgOrderValue">0 د.ل</h3>
+                <p class="text-sm text-gray-500 mt-1">المجموع فقط لكل طلب مكتمل</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- رسوم بيانية -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div class="chart-container">
+        <h3 class="text-xl font-bold text-gray-800 mb-4">توزيع الطلبات حسب المدينة</h3>
+        <canvas id="citiesChart" height="300"></canvas>
+    </div>
+    
+    <div class="chart-container">
+        <h3 class="text-xl font-bold text-gray-800 mb-4">الإيرادات المكتملة حسب المدينة (المجموع فقط)</h3>
+        <canvas id="revenueChart" height="300"></canvas>
+    </div>
+</div>
+
+<!-- أفضل المدن -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div class="stat-card">
+        <h3 class="text-xl font-bold text-gray-800 mb-4">أفضل المدن (الأكثر إيرادات مكتملة)</h3>
+        <div class="space-y-3" id="topCities">
+            <!-- سيتم ملؤها بالجافاسكريبت -->
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <h3 class="text-xl font-bold text-gray-800 mb-4">المدن الأقل نشاطاً (أقل إيرادات مكتملة)</h3>
+        <div class="space-y-3" id="bottomCities">
+            <!-- سيتم ملؤها بالجافاسكريبت -->
+        </div>
+    </div>
+</div>
+
+<!-- إحصائيات الحالات -->
+<div class="stat-card p-6 mb-8">
+    <h3 class="text-xl font-bold text-gray-800 mb-4">توزيع الطلبات حسب الحالة</h3>
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4" id="statusStats">
+        <!-- سيتم ملؤها بالجافاسكريبت -->
+    </div>
+</div>
+
+<!-- تفاصيل جميع المدن -->
+<div class="stat-card">
+    <h3 class="text-xl font-bold text-gray-800 mb-6">تفاصيل جميع المدن</h3>
+    <div class="overflow-x-auto">
+        <table class="orders-table">
+            <thead>
+                <tr>
+                    <th>المدينة</th>
+                    <th>مصاريف الشحن</th>
+                    <th>عدد الطلبات</th>
+                    <th>الإيرادات المكتملة (المجموع فقط)</th>
+                    <th>مكتمل</th>
+                    <th>ملغي</th>
+                    <th>مرتجع</th>
+                    <th>متوسط الطلب</th>
+                    <th>نسبة النجاح</th>
+                    <th>المسوقون الفريدون</th>
+                </tr>
+            </thead>
+            <tbody id="citiesTableBody">
+                <!-- سيتم ملؤها بالجافاسكريبت -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</div>
+
+</main>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    
+    .chart-container {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .orders-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .orders-table th {
+        background: #f8f9fa;
+        padding: 12px;
+        text-align: right;
+        font-weight: 600;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .orders-table td {
+        padding: 12px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .orders-table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .status-completed {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .status-cancelled {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .status-returned {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 6px;
+        background: #e9ecef;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: #4b6b2f;
+        transition: width 0.3s ease;
+    }
+    
+    .refresh-btn.loading {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+    
+    .message {
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        font-weight: 500;
+    }
+    
+    .message.success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .message.error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+</style>
+
+<script>
+let citiesData = <?php echo $cities_json ?: '[]'; ?>;
+let summaryData = <?php echo $summary_json ?: '{"cities_with_orders":0,"total_orders":0,"total_revenue":0}'; ?>;
+let citiesChart = null;
+let revenueChart = null;
+
+// تحديث الواجهة
+function updateUI() {
+  updateStatistics();
+  updateCharts();
+  updateTopCities();
+  updateBottomCities();
+  updateStatusStats();
+  updateCitiesTable();
+}
+
+// تحديث الإحصائيات العامة
+function updateStatistics() {
+  const totalCities = citiesData.length;
+  const totalOrders = Number(summaryData.total_orders || 0);
+  const completedOrders = citiesData.reduce((sum, city) => sum + Number(city.completed_orders || 0), 0);
+  const totalRevenue = parseFloat(summaryData.total_revenue || 0);
+  
+  document.getElementById('totalCities').textContent = totalCities;
+  document.getElementById('totalOrders').textContent = totalOrders.toLocaleString();
+  document.getElementById('totalRevenue').textContent = totalRevenue.toFixed(2) + ' د.ل';
+  document.getElementById('avgOrderValue').textContent = (completedOrders > 0 ? totalRevenue / completedOrders : 0).toFixed(2) + ' د.ل';
+}
+
+// تحديث الرسوم البيانية
+function updateCharts() {
+  if (citiesChart) citiesChart.destroy();
+  if (revenueChart) revenueChart.destroy();
+
+  const topCities = citiesData.slice(0, 10);
+  const topRevenueCities = citiesData.slice(0, 8);
+  const citiesCtx = document.getElementById('citiesChart').getContext('2d');
+
+  citiesChart = new Chart(citiesCtx, {
+    type: 'bar',
+    data: {
+      labels: topCities.map(city => city.city_name || 'غير معروف'),
+      datasets: [{
+        label: 'عدد الطلبات',
+        data: topCities.map(city => parseInt(city.total_orders || 0, 10)),
+        backgroundColor: 'rgba(75, 107, 47, 0.8)',
+        borderColor: 'rgba(75, 107, 47, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+
+  const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+  revenueChart = new Chart(revenueCtx, {
+    type: 'doughnut',
+    data: {
+      labels: topRevenueCities.map(city => city.city_name || 'غير معروف'),
+      datasets: [{
+        data: topRevenueCities.map(city => parseFloat(city.total_revenue || 0)),
+        backgroundColor: [
+          '#4b6b2f', '#16a34a', '#22c55e', '#84cc16',
+          '#f59e0b', '#f97316', '#3b82f6', '#8b5cf6'
+        ]
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom'
+        }
+      }
+    }
+  });
+}
+
+
+// Update top cities
+function updateTopCities() {
+  const container = document.getElementById('topCities');
+  container.innerHTML = citiesData.slice(0, 5).map((city, index) => `
+    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+      <div class="flex items-center">
+        <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center ml-3">
+          <span class="text-green-600 font-bold">${index + 1}</span>
+        </div>
+        <div>
+          <p class="font-semibold text-gray-800">${city.city_name || 'غير معروف'}</p>
+          <p class="text-sm text-gray-500">${(city.total_revenue || 0).toFixed(2)} د.ل</p>
+        </div>
+      </div>
+      <div class="text-left">
+        <p class="font-bold text-gray-800">${city.completed_orders || 0}</p>
+        <p class="text-sm text-gray-500">مكتمل</p>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Update bottom cities
+function updateBottomCities() {
+  const container = document.getElementById('bottomCities');
+  container.innerHTML = citiesData.slice(-5).reverse().map((city, index) => `
+    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+      <div class="flex items-center">
+        <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center ml-3">
+          <span class="text-red-600 font-bold">${index + 1}</span>
+        </div>
+        <div>
+          <p class="font-semibold text-gray-800">${city.city_name || 'غير معروف'}</p>
+          <p class="text-sm text-gray-500">${(city.total_revenue || 0).toFixed(2)} د.ل</p>
+        </div>
+      </div>
+      <div class="text-left">
+        <p class="font-bold text-gray-800">${city.completed_orders || 0}</p>
+        <p class="text-sm text-gray-500">مكتمل</p>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Update status stats - simplified for user data
+function updateStatusStats() {
+  const container = document.getElementById('statusStats');
+  const totalOrders = Number(summaryData.total_orders || 0);
+  const completedOrders = citiesData.reduce((sum, city) => sum + Number(city.completed_orders || 0), 0);
+  const cancelledOrders = citiesData.reduce((sum, city) => sum + Number(city.cancelled_orders || 0), 0);
+  const returnedOrders = citiesData.reduce((sum, city) => sum + Number(city.returned_orders || 0), 0);
+  const pendingOrders = Math.max(totalOrders - completedOrders - cancelledOrders - returnedOrders, 0);
+  
+  container.innerHTML = `
+    <div class="text-center p-4 bg-green-50 rounded-lg">
+      <div class="text-2xl font-bold text-green-600">${completedOrders}</div>
+      <div class="text-sm text-gray-600">مكتمل</div>
+    </div>
+    <div class="text-center p-4 bg-yellow-50 rounded-lg">
+      <div class="text-2xl font-bold text-yellow-600">${pendingOrders}</div>
+      <div class="text-sm text-gray-600">قيد الانتظار</div>
+    </div>
+    <div class="text-center p-4 bg-red-50 rounded-lg">
+      <div class="text-2xl font-bold text-red-600">${cancelledOrders}</div>
+      <div class="text-sm text-gray-600">ملغي</div>
+    </div>
+    <div class="text-center p-4 bg-orange-50 rounded-lg">
+      <div class="text-2xl font-bold text-orange-600">${returnedOrders}</div>
+      <div class="text-sm text-gray-600">مرتجع</div>
+    </div>
+  `;
+}
+
+// Update cities table
+function updateCitiesTable() {
+  const tbody = document.getElementById('citiesTableBody');
+  tbody.innerHTML = citiesData.map(city => {
+    const successRate = (city.total_orders || 0) > 0 ? ((city.completed_orders || 0) / (city.total_orders || 0)) * 100 : 0;
+    return `
+      <tr class="hover:bg-gray-50">
+        <td>
+          <div class="flex items-center">
+            <i class='bx bx-map-pin text-blue-500 ml-2'></i>
+            <span class="font-semibold">${city.city_name || 'غير معروف'}</span>
+          </div>
+        </td>
+        <td>${city.shipping_cost || 0} د.ل</td>
+        <td><span class="font-bold text-blue-600">${city.total_orders || 0}</span></td>
+        <td><span class="font-bold text-green-600">${(city.total_revenue || 0).toFixed(2)} د.ل</span></td>
+        <td><span class="status-badge status-completed">${city.completed_orders || 0}</span></td>
+        <td><span class="status-badge status-cancelled">${city.cancelled_orders || 0}</span></td>
+        <td><span class="status-badge status-returned">${city.returned_orders || 0}</span></td>
+        <td>${(city.total_orders || 0) > 0 ? ((city.total_revenue || 0) / (city.total_orders || 0)).toFixed(2) : 0} د.ل</td>
+        <td>
+          <div class="flex items-center">
+            <div class="progress-bar w-16 ml-2">
+              <div class="progress-fill" style="width: ${successRate}%"></div>
+            </div>
+            <span class="text-sm font-semibold">${successRate.toFixed(1)}%</span>
+          </div>
+        </td>
+        <td>${city.unique_users || 1}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function syncCitiesStats() {
+  const refreshBtn = document.getElementById('refreshBtn');
+  refreshBtn.classList.add('loading');
+  refreshBtn.innerHTML = "<i class='bx bx-loader-alt bx-spin ml-1'></i> جاري التحديث...";
+  
+  setTimeout(() => {
+    updateUI();
+    refreshBtn.classList.remove('loading');
+    refreshBtn.innerHTML = "<i class='bx bx-refresh ml-1'></i> تحديث الإحصائيات";
+    showMessage('تم تحديث الإحصائيات بنجاح', 'success');
+  }, 1000);
+}
+
+// Show message function
+function showMessage(message, type) {
+  const messageContainer = document.getElementById('messageContainer');
+  messageContainer.innerHTML = `<div class="message ${type}">${message}</div>`;
+  
+  setTimeout(() => {
+    messageContainer.innerHTML = '';
+  }, 5000);
+}
+
+// Export function
+function exportToExcel() {
+  let csv = '\ufeff';
+  csv += 'المدينة,مصاريف الشحن,عدد الطلبات,إيرادات مكتملة,مكتمل,ملغي,مرتجع,متوسط الطلب,نسبة النجاح,المستخدمون الفريدون\n';
+  
+  citiesData.forEach(city => {
+    const successRate = (city.total_orders || 0) > 0 ? ((city.completed_orders || 0) / (city.total_orders || 0)) * 100 : 0;
+    csv += `"${city.city_name || 'غير معروف'}",`;
+    csv += `${parseFloat(city.shipping_cost || 0).toFixed(2)},`;
+    csv += `${city.total_orders || 0},`;
+    csv += `${parseFloat(city.total_revenue || 0).toFixed(2)},`;
+    csv += `${city.completed_orders || 0},`;
+    csv += `${city.cancelled_orders || 0},`;
+    csv += `${city.returned_orders || 0},`;
+    csv += `${(city.total_orders || 0) > 0 ? (parseFloat(city.total_revenue || 0) / city.total_orders).toFixed(2) : '0.00'},`;
+    csv += `${successRate.toFixed(1)}%,`;
+    csv += `${city.unique_users || 1}\n`;
+  });
+  
+  // إنشاء وتحميل الملف
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', `إحصائيات_المدن_${new Date().toISOString().split('T')[0]}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+document.addEventListener('DOMContentLoaded', updateUI);
+</script>
+
+<style>
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    
+    .chart-container {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        max-width: 100%;
+        overflow: hidden;
+    }
+    
+    .chart-container canvas {
+        max-width: 100% !important;
+        height: 300px !important;
+        max-height: 300px !important;
+    }
+    
+    .orders-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .orders-table th {
+        background: #f8f9fa;
+        padding: 12px;
+        text-align: right;
+        font-weight: 600;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .orders-table td {
+        padding: 12px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .orders-table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .status-completed {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .status-cancelled {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .status-returned {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 6px;
+        background: #e9ecef;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: #4b6b2f;
+        transition: width 0.3s ease;
+    }
+    
+    .refresh-btn.loading {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+    
+    .message {
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        font-weight: 500;
+    }
+    
+    .message.success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .message.error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+</style>
+</body>
+</html>

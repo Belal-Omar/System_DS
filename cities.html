@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>قائمة المدن</title>
+    <link rel="icon" type="image/png" href="brand_logo.php?f=logo">
+    <link rel="shortcut icon" type="image/png" href="brand_logo.php?f=favicon">
+    <link rel="apple-touch-icon" href="brand_logo.php?f=logo">
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        h1 { color: #333; }
+        ul { list-style-type: none; padding: 0; }
+        li { background: #fff; margin: 5px 0; padding: 10px; border-radius: 5px; box-shadow: 0 0 5px rgba(0,0,0,0.1); }
+        .error { color: red; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<h1>قائمة المدن وتكلفة الشحن</h1>
+<ul id="citiesList"></ul>
+<div id="error" class="error"></div>
+
+<script>
+async function loadCities() {
+    const list = document.getElementById('citiesList');
+    const errorDiv = document.getElementById('error');
+    list.innerHTML = '';
+    errorDiv.textContent = '';
+
+    try {
+        const response = await fetch('get_cities_api.php');
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || 'فشل في جلب المدن');
+
+        if (data.cities.length === 0) {
+            list.innerHTML = '<li>لا توجد مدن مسجلة</li>';
+        } else {
+            data.cities.forEach(city => {
+                const li = document.createElement('li');
+                li.textContent = `${city.city_name} - تكلفة الشحن: ${city.shipping_cost} جنيه`;
+                list.appendChild(li);
+            });
+        }
+
+    } catch (err) {
+        console.error(err);
+        errorDiv.textContent = `حدث خطأ أثناء تحميل المدن: ${err.message}`;
+    }
+}
+
+// تحميل المدن عند فتح الصفحة
+loadCities();
+</script>
+
+</body>
+</html>
